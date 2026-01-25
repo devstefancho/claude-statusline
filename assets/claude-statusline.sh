@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Read JSON input from stdin
+input=$(cat)
+
+# Extract data from JSON
+current_dir=$(echo "$input" | jq -r '.workspace.current_dir')
+project_dir=$(echo "$input" | jq -r '.workspace.project_dir')
+model_name=$(echo "$input" | jq -r '.model.display_name')
+output_style=$(echo "$input" | jq -r '.output_style.name')
+transcript_path=$(echo "$input" | jq -r '.transcript_path')
+session_id=$(echo "$input" | jq -r '.session_id')
+used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
+
+# Get relative path
+if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git_root=$(git -C "$current_dir" rev-parse --show-toplevel)
+    repo_name=$(basename "$git_root")
+    if [ "$current_dir" = "$git_root" ]; then
+        relative_path="$repo_name"
+    else
+        rel_path=$(python3 -c "import os; print(os.path.relpath('$current_dir', '$git_root'))")
+        relative_path="$repo_name/$rel_path"
+    fi
+else
+    if [ "$current_dir" = "$project_dir" ]; then
+        relative_path="$(basename "$project_dir")"
+    else
+        rel_path=$(python3 -c "import os; print(os.path.relpath('$current_dir', '$project_dir'))")
+        relative_path="$(basename "$project_dir")/$rel_path"
+    fi
+fi
+
+# Get last user message
+if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+    last_user_message=$(tail -n 100 "$transcript_path" 2>/dev/null | jq -r 'select(.message.role == "user" and (.message.content | type == "string")) | .message.content' | tail -n 1 | head -c 200)
+    if [ -n "$last_user_message" ] && [ "$last_user_message" != "null" ]; then
+        if [ ${#last_user_message} -eq 200 ]; then
+            last_user_message="${last_user_message}..."
+        fi
+    else
+        last_user_message="Empty"
+    fi
+else
+    last_user_message="Empty"
+fi
+
+# Build context progress bar
+used_int=${used_pct%.*}
+filled=$((used_int / 10))
+empty=$((10 - filled))
+ctx_bar="["
+for ((i=0; i<filled; i++)); do ctx_bar+="█"; done
+for ((i=0; i<empty; i++)); do ctx_bar+="░"; done
+ctx_bar+="]"
+
+# ANSI color codes
+BLUE='\033[34m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+CYAN='\033[36m'
+WHITE='\033[37m'
+GRAY='\033[90m'
+MAGENTA='\033[35m'
+RESET='\033[0m'
+
+# Define status line components (순서 변경/추가/삭제 용이)
+components=(
+    "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+    "${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
+    "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
+)
+
+# Output the status line (join with gray ' | ')
+PIPE="${GRAY}|${RESET}"
+result=""
+for i in "${!components[@]}"; do
+    if [ $i -gt 0 ]; then
+        result+=" ${PIPE} "
+    fi
+    result+="${components[$i]}"
+done
+printf ' %b' "$result"

@@ -1,0 +1,32 @@
+{
+  "name": "@devstefancho/claude-statusline",
+  "version": "1.0.0",
+  "description": "NPX installable Claude Code statusline configuration",
+  "bin": {
+    "claude-statusline": "./bin/cli.js"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "node bin/cli.js status"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "statusline",
+    "cli"
+  ],
+  "author": "devstefancho",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devstefancho/claude-statusline"
+  },
+  "homepage": "https://github.com/devstefancho/claude-statusline",
+  "bugs": "https://github.com/devstefancho/claude-statusline/issues",
+  "engines": {
+    "node": ">=18"
+  }
+}
