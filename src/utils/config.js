@@ -2,14 +2,17 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, chmod
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
+import { isWindows, getScriptName } from './platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const SCRIPT_NAME = getScriptName();
+
 export const CLAUDE_DIR = join(homedir(), '.claude');
 export const SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
-export const STATUSLINE_SCRIPT_PATH = join(CLAUDE_DIR, 'claude-statusline.sh');
-export const ASSET_SCRIPT_PATH = join(__dirname, '../../assets/claude-statusline.sh');
+export const STATUSLINE_SCRIPT_PATH = join(CLAUDE_DIR, SCRIPT_NAME);
+export const ASSET_SCRIPT_PATH = join(__dirname, '../../assets', SCRIPT_NAME);
 
 export function ensureClaudeDir() {
   if (!existsSync(CLAUDE_DIR)) {
@@ -42,11 +45,15 @@ export function writeSettings(settings) {
 }
 
 export function addStatusLineConfig(settings) {
+  const command = isWindows
+    ? 'powershell.exe -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.claude\\claude-statusline.ps1"'
+    : '~/.claude/claude-statusline.sh';
+
   return {
     ...settings,
     statusLine: {
       type: 'command',
-      command: '~/.claude/claude-statusline.sh',
+      command,
     },
   };
 }
@@ -59,7 +66,10 @@ export function removeStatusLineConfig(settings) {
 export function copyStatuslineScript() {
   try {
     copyFileSync(ASSET_SCRIPT_PATH, STATUSLINE_SCRIPT_PATH);
-    chmodSync(STATUSLINE_SCRIPT_PATH, '755');
+    // chmod is only needed on Unix systems
+    if (!isWindows) {
+      chmodSync(STATUSLINE_SCRIPT_PATH, '755');
+    }
     return true;
   } catch (error) {
     console.error(`Error copying script: ${error.message}`);

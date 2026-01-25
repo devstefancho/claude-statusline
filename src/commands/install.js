@@ -11,6 +11,7 @@ import {
   SETTINGS_PATH,
 } from '../utils/config.js';
 import { checkAllDependencies, printDependencyStatus } from '../utils/dependency.js';
+import { isWindows, getScriptName } from '../utils/platform.js';
 
 export function install(options) {
   console.log('Claude Statusline Installer\n');
@@ -19,14 +20,19 @@ export function install(options) {
   const deps = checkAllDependencies();
   printDependencyStatus();
 
-  if (!deps.jq) {
+  // jq is only required on Unix systems
+  if (!isWindows && !deps.jq) {
     console.error('\n✗ Error: jq is required but not installed.');
     console.log('  Install with: brew install jq (macOS) or apt install jq (Ubuntu)');
     process.exit(1);
   }
 
   if (!deps.python3) {
-    console.warn('\n⚠ Warning: python3 is not installed. Relative path calculation may not work correctly.');
+    if (isWindows) {
+      console.warn('\n⚠ Warning: python is not installed. Using PowerShell built-in path functions.');
+    } else {
+      console.warn('\n⚠ Warning: python3 is not installed. Relative path calculation may not work correctly.');
+    }
   }
 
   // Check existing installation
@@ -65,10 +71,11 @@ export function install(options) {
   ensureClaudeDir();
 
   // Copy statusline script
+  const scriptName = getScriptName();
   if (copyStatuslineScript()) {
-    console.log(`  ✓ Copied statusline.sh to ${STATUSLINE_SCRIPT_PATH}`);
+    console.log(`  ✓ Copied ${scriptName} to ${STATUSLINE_SCRIPT_PATH}`);
   } else {
-    console.error('  ✗ Failed to copy statusline.sh');
+    console.error(`  ✗ Failed to copy ${scriptName}`);
     process.exit(1);
   }
 
@@ -84,4 +91,9 @@ export function install(options) {
 
   console.log('\n✓ Installation complete!');
   console.log('\nRestart Claude Code to apply changes.');
+
+  // Platform-specific notes
+  if (isWindows) {
+    console.log('\nNote: The PowerShell script runs with -ExecutionPolicy Bypass.');
+  }
 }

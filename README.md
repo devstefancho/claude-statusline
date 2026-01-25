@@ -16,6 +16,13 @@ statusline은 다음 정보를 표시합니다:
 - **SID**: 세션 ID
 - **MSG**: 마지막 사용자 메시지 (미리보기)
 
+## Supported Platforms
+
+| Platform | Script | Dependencies |
+|----------|--------|--------------|
+| macOS / Linux | `claude-statusline.sh` (Bash) | jq (required), python3, git |
+| Windows | `claude-statusline.ps1` (PowerShell) | python (optional), git |
+
 ## Installation
 
 ```bash
@@ -69,7 +76,9 @@ npx @devstefancho/claude-statusline status
 
 ## Requirements
 
-### 필수
+### macOS / Linux
+
+#### 필수
 - **jq**: JSON 파싱을 위해 필요
   ```bash
   # macOS
@@ -79,24 +88,37 @@ npx @devstefancho/claude-statusline status
   apt install jq
   ```
 
-### 권장
+#### 권장
 - **python3**: 상대 경로 계산에 사용
+- **git**: git 저장소 기준 경로 표시에 사용
+
+### Windows
+
+Windows에서는 PowerShell 스크립트를 사용하므로 **jq가 필요하지 않습니다**.
+
+#### 권장
+- **python**: 상대 경로 계산에 사용 (없으면 PowerShell 내장 함수 사용)
 - **git**: git 저장소 기준 경로 표시에 사용
 
 ## How It Works
 
-1. `~/.claude/statusline.sh` 스크립트 파일 설치
+1. 플랫폼에 맞는 스크립트 파일 설치:
+   - macOS/Linux: `~/.claude/claude-statusline.sh`
+   - Windows: `%USERPROFILE%\.claude\claude-statusline.ps1`
 2. `~/.claude/settings.json`에 statusLine 설정 추가
 
 설치 후 Claude Code를 재시작하면 statusline이 적용됩니다.
 
 ## Customization
 
-설치 후 `~/.claude/statusline.sh` 파일을 직접 수정하여 statusline을 커스터마이즈할 수 있습니다.
+설치 후 스크립트 파일을 직접 수정하여 statusline을 커스터마이즈할 수 있습니다.
 
 ```bash
-# 스크립트 파일 편집
-vim ~/.claude/statusline.sh
+# macOS/Linux
+vim ~/.claude/claude-statusline.sh
+
+# Windows (PowerShell)
+notepad $env:USERPROFILE\.claude\claude-statusline.ps1
 ```
 
 ## Uninstallation
