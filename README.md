@@ -1,6 +1,8 @@
+**English** | [한국어](README.ko.md)
+
 # @devstefancho/claude-statusline
 
-Claude Code CLI를 위한 커스텀 statusline 설정을 간편하게 설치할 수 있는 npx 패키지입니다.
+An npx package for easily installing custom statusline configuration for Claude Code CLI.
 
 ## Screenshot
 
@@ -8,13 +10,13 @@ Claude Code CLI를 위한 커스텀 statusline 설정을 간편하게 설치할 
 
 ## Features
 
-statusline은 다음 정보를 표시합니다:
-- **DIR**: 현재 작업 디렉토리 (git 기준 상대경로)
-- **MODEL**: 사용 중인 Claude 모델
-- **CTX**: Context window 사용률 (프로그레스 바)
-- **STYLE**: 출력 스타일
-- **SID**: 세션 ID
-- **MSG**: 마지막 사용자 메시지 (미리보기)
+The statusline displays the following information:
+- **DIR**: Current working directory (relative path from git root)
+- **MODEL**: Active Claude model
+- **CTX**: Context window usage (progress bar)
+- **STYLE**: Output style
+- **SID**: Session ID
+- **MSG**: Last user message (preview)
 
 ## Supported Platforms
 
@@ -25,6 +27,14 @@ statusline은 다음 정보를 표시합니다:
 
 ## Installation
 
+### Install directly from GitHub (not published to npm)
+
+```bash
+npx github:devstefancho/claude-statusline install
+```
+
+### Install from npm (after publishing)
+
 ```bash
 npx @devstefancho/claude-statusline install
 ```
@@ -32,10 +42,10 @@ npx @devstefancho/claude-statusline install
 ### Options
 
 ```bash
-# 강제 설치 (기존 파일 덮어쓰기)
+# Force install (overwrite existing files)
 npx @devstefancho/claude-statusline install --force
 
-# 기존 파일 백업 후 설치
+# Backup existing files before install
 npx @devstefancho/claude-statusline install --backup
 ```
 
@@ -43,32 +53,32 @@ npx @devstefancho/claude-statusline install --backup
 
 ### install
 
-statusline 설정을 설치합니다.
+Installs the statusline configuration.
 
 ```bash
 npx @devstefancho/claude-statusline install [options]
 ```
 
-| 옵션 | 설명 |
-|------|------|
-| `-f, --force` | 기존 파일 덮어쓰기 |
-| `-b, --backup` | 기존 파일 백업 후 설치 |
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Overwrite existing files |
+| `-b, --backup` | Backup existing files before install |
 
 ### uninstall
 
-statusline 설정을 제거합니다.
+Removes the statusline configuration.
 
 ```bash
 npx @devstefancho/claude-statusline uninstall [options]
 ```
 
-| 옵션 | 설명 |
-|------|------|
-| `--keep-script` | 스크립트 파일은 유지하고 설정만 제거 |
+| Option | Description |
+|--------|-------------|
+| `--keep-script` | Keep script file, only remove settings |
 
 ### status
 
-현재 설치 상태를 확인합니다.
+Check current installation status.
 
 ```bash
 npx @devstefancho/claude-statusline status
@@ -78,8 +88,8 @@ npx @devstefancho/claude-statusline status
 
 ### macOS / Linux
 
-#### 필수
-- **jq**: JSON 파싱을 위해 필요
+#### Required
+- **jq**: Required for JSON parsing
   ```bash
   # macOS
   brew install jq
@@ -88,30 +98,30 @@ npx @devstefancho/claude-statusline status
   apt install jq
   ```
 
-#### 권장
-- **python3**: 상대 경로 계산에 사용
-- **git**: git 저장소 기준 경로 표시에 사용
+#### Recommended
+- **python3**: Used for relative path calculation
+- **git**: Used for git-relative path display
 
 ### Windows
 
-Windows에서는 PowerShell 스크립트를 사용하므로 **jq가 필요하지 않습니다**.
+Windows uses a PowerShell script, so **jq is not required**.
 
-#### 권장
-- **python**: 상대 경로 계산에 사용 (없으면 PowerShell 내장 함수 사용)
-- **git**: git 저장소 기준 경로 표시에 사용
+#### Recommended
+- **python**: Used for relative path calculation (falls back to PowerShell built-in function if unavailable)
+- **git**: Used for git-relative path display
 
 ## How It Works
 
-1. 플랫폼에 맞는 스크립트 파일 설치:
+1. Installs platform-specific script file:
    - macOS/Linux: `~/.claude/claude-statusline.sh`
    - Windows: `%USERPROFILE%\.claude\claude-statusline.ps1`
-2. `~/.claude/settings.json`에 statusLine 설정 추가
+2. Adds statusLine configuration to `~/.claude/settings.json`
 
-설치 후 Claude Code를 재시작하면 statusline이 적용됩니다.
+Restart Claude Code after installation to apply the statusline.
 
 ## Customization
 
-설치 후 스크립트 파일을 직접 수정하여 statusline을 커스터마이즈할 수 있습니다.
+After installation, you can customize the statusline by editing the script file directly.
 
 ```bash
 # macOS/Linux
@@ -124,10 +134,10 @@ notepad $env:USERPROFILE\.claude\claude-statusline.ps1
 ## Uninstallation
 
 ```bash
-# 완전 제거
+# Complete removal
 npx @devstefancho/claude-statusline uninstall
 
-# 설정만 제거 (스크립트는 유지)
+# Remove settings only (keep script)
 npx @devstefancho/claude-statusline uninstall --keep-script
 ```
 
