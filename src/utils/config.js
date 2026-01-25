@@ -12,7 +12,7 @@ const SCRIPT_NAME = getScriptName();
 export const CLAUDE_DIR = join(homedir(), '.claude');
 export const SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
 export const STATUSLINE_SCRIPT_PATH = join(CLAUDE_DIR, SCRIPT_NAME);
-export const ASSET_SCRIPT_PATH = join(__dirname, '../../assets', SCRIPT_NAME);
+export const ASSET_SCRIPT_PATH = join(__dirname, '../../scripts', SCRIPT_NAME);
 
 export function ensureClaudeDir() {
   if (!existsSync(CLAUDE_DIR)) {

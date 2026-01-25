@@ -33,9 +33,11 @@ src/utils/
   config.js          # File operations for ~/.claude/settings.json and script installation
   dependency.js      # System dependency checks (jq, python3, git) - platform aware
   platform.js        # Platform detection utilities (isWindows, getScriptName)
-assets/
+scripts/
   claude-statusline.sh   # Bash script for macOS/Linux
   claude-statusline.ps1  # PowerShell script for Windows
+assets/
+  screenshot.png         # README screenshot
 ```
 
 **Key paths managed by the tool:**
