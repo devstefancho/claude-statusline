@@ -45,7 +45,7 @@ export function writeSettings(settings) {
 }
 
 export function addStatusLineConfig(settings) {
-  const command = isWindows
+  const command = isWindows()
     ? 'powershell.exe -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.claude\\claude-statusline.ps1"'
     : '~/.claude/claude-statusline.sh';
 
@@ -67,7 +67,7 @@ export function copyStatuslineScript() {
   try {
     copyFileSync(ASSET_SCRIPT_PATH, STATUSLINE_SCRIPT_PATH);
     // chmod is only needed on Unix systems
-    if (!isWindows) {
+    if (!isWindows()) {
       chmodSync(STATUSLINE_SCRIPT_PATH, '755');
     }
     return true;

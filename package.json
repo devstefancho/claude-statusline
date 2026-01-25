@@ -1,6 +1,6 @@
 {
   "name": "@devstefancho/claude-statusline",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "NPX installable Claude Code statusline configuration",
   "bin": {
     "claude-statusline": "./bin/cli.js"

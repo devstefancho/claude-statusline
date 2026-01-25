@@ -1,3 +1,4 @@
+import { platform } from 'os';
 import {
   ensureClaudeDir,
   readSettings,
@@ -16,19 +17,22 @@ import { isWindows, getScriptName } from '../utils/platform.js';
 export function install(options) {
   console.log('Claude Statusline Installer\n');
 
+  // Debug: log platform info for troubleshooting
+  console.log(`Debug: platform()=${platform()}, isWindows()=${isWindows()}`);
+
   // Check dependencies
   const deps = checkAllDependencies();
   printDependencyStatus();
 
   // jq is only required on Unix systems
-  if (!isWindows && !deps.jq) {
+  if (!isWindows() && !deps.jq) {
     console.error('\n✗ Error: jq is required but not installed.');
     console.log('  Install with: brew install jq (macOS) or apt install jq (Ubuntu)');
     process.exit(1);
   }
 
   if (!deps.python3) {
-    if (isWindows) {
+    if (isWindows()) {
       console.warn('\n⚠ Warning: python is not installed. Using PowerShell built-in path functions.');
     } else {
       console.warn('\n⚠ Warning: python3 is not installed. Relative path calculation may not work correctly.');
@@ -93,7 +97,7 @@ export function install(options) {
   console.log('\nRestart Claude Code to apply changes.');
 
   // Platform-specific notes
-  if (isWindows) {
+  if (isWindows()) {
     console.log('\nNote: The PowerShell script runs with -ExecutionPolicy Bypass.');
   }
 }
