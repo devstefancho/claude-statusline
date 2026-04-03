@@ -12,6 +12,10 @@ $output_style = $data.output_style.name
 $transcript_path = $data.transcript_path
 $session_id = $data.session_id
 $used_pct = if ($data.context_window.used_percentage) { $data.context_window.used_percentage } else { 0 }
+$five_hour_pct = $data.rate_limits.five_hour.used_percentage
+$seven_day_pct = $data.rate_limits.seven_day.used_percentage
+$worktree_name = $data.worktree.name
+$worktree_orig_branch = $data.worktree.original_branch
 
 # Get relative path
 $relative_path = ""
@@ -86,14 +90,42 @@ $CYAN = "`e[36m"
 $WHITE = "`e[37m"
 $GRAY = "`e[90m"
 $MAGENTA = "`e[35m"
+$RED = "`e[31m"
 $RESET = "`e[0m"
+
+# Build rate limit string (only if data exists)
+$limit_str = ""
+if ($five_hour_pct -ne $null) {
+    $limit_str = "5h:$([math]::Floor($five_hour_pct))%"
+}
+if ($seven_day_pct -ne $null) {
+    if ($limit_str) { $limit_str += " " }
+    $limit_str += "7d:$([math]::Floor($seven_day_pct))%"
+}
+
+# Build worktree string (only if in worktree session)
+$worktree_str = ""
+if ($worktree_name) {
+    $worktree_str = $worktree_name
+    if ($worktree_orig_branch) {
+        $worktree_str += " ($worktree_orig_branch)"
+    }
+}
 
 # Define status line components
 $components = @(
     "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}",
     "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}",
-    "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}",
-    "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}",
+    "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+)
+if ($limit_str) {
+    $components += "${RED}LIMIT${RESET} ${GRAY}$limit_str${RESET}"
+}
+$components += "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+if ($worktree_str) {
+    $components += "${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
+}
+$components += @(
     "${CYAN}SID${RESET} ${GRAY}$session_id${RESET}",
     "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
 )
