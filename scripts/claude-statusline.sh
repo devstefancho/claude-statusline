@@ -11,6 +11,10 @@ output_style=$(echo "$input" | jq -r '.output_style.name')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 session_id=$(echo "$input" | jq -r '.session_id')
 used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
+five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+seven_day_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+worktree_name=$(echo "$input" | jq -r '.worktree.name // empty')
+worktree_orig_branch=$(echo "$input" | jq -r '.worktree.original_branch // empty')
 
 # Get relative path
 if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -64,12 +68,36 @@ GRAY='\033[90m'
 MAGENTA='\033[35m'
 RESET='\033[0m'
 
+# Build rate limit string (only if data exists)
+limit_str=""
+if [ -n "$five_hour_pct" ] || [ -n "$seven_day_pct" ]; then
+    five_h_int=${five_hour_pct%.*}
+    seven_d_int=${seven_day_pct%.*}
+    [ -n "$five_hour_pct" ] && limit_str="5h:${five_h_int}%"
+    [ -n "$seven_day_pct" ] && limit_str="${limit_str:+$limit_str }7d:${seven_d_int}%"
+fi
+
+# Build worktree string (only if in worktree session)
+worktree_str=""
+if [ -n "$worktree_name" ]; then
+    worktree_str="$worktree_name"
+    [ -n "$worktree_orig_branch" ] && worktree_str="$worktree_str ($worktree_orig_branch)"
+fi
+
+RED='\033[31m'
+
 # Define status line components (순서 변경/추가/삭제 용이)
 components=(
     "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
     "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
     "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+)
+[ -n "$limit_str" ] && components+=("${RED}LIMIT${RESET} ${GRAY}$limit_str${RESET}")
+components+=(
     "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+)
+[ -n "$worktree_str" ] && components+=("${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}")
+components+=(
     "${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
     "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
 )
