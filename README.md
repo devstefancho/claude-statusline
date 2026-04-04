@@ -6,7 +6,11 @@ An npx package for easily installing custom statusline configuration for Claude 
 
 ## Screenshot
 
-![claude-statusline screenshot](assets/screenshot.png)
+### Without Worktree
+![claude-statusline without worktree](assets/no-worktree.png)
+
+### With Worktree
+![claude-statusline with worktree](assets/worktree.png)
 
 ## Features
 
