@@ -13,15 +13,15 @@ An npx package for easily installing custom statusline configuration for Claude 
 The statusline is displayed in 3 lines, grouped by meaning:
 
 ```
- DIR repo/src | GIT main ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✗
+ DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
  MODEL Opus 4.6 (1M context) | CTX [████░░░░░░] 8% | USED 64%(0h1m) 23%(5d21h)
  SID a5bc4601... | STYLE default | MSG hi
 ```
 
 ### Line 1 — Workspace
 - **DIR**: Current working directory (relative path from git root)
-- **GIT**: Git status — branch, ahead/behind (`↑↓`), untracked (`?`), staged (`+`), modified (`~`), deleted (`-`), conflicts (`!`). Items with 0 count are hidden.
-- **WORKTREE**: Worktree indicator — `✓` (green) with name if in a worktree, `✗` (red) if not
+- **GIT**: Git status — branch, original branch (in worktree), ahead/behind (`↑↓`), untracked (`?`), staged (`+`), modified (`~`), deleted (`-`), conflicts (`!`). Items with 0 count are hidden.
+- **WORKTREE**: Worktree indicator — `✓` (green) if in a worktree, `✗` (red) if not
 
 ### Line 2 — Model / Resources
 - **MODEL**: Active Claude model

@@ -13,15 +13,15 @@ Claude Code CLI를 위한 커스텀 statusline 설정을 간편하게 설치할 
 statusline은 의미별로 그룹핑된 3줄로 표시됩니다:
 
 ```
- DIR repo/src | GIT main ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✗
+ DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
  MODEL Opus 4.6 (1M context) | CTX [████░░░░░░] 8% | USED 64%(0h1m) 23%(5d21h)
  SID a5bc4601... | STYLE default | MSG hi
 ```
 
 ### Line 1 — 작업 위치
 - **DIR**: 현재 작업 디렉토리 (git 기준 상대경로)
-- **GIT**: Git 상태 — 브랜치, ahead/behind (`↑↓`), untracked (`?`), staged (`+`), modified (`~`), deleted (`-`), conflicts (`!`). 0인 항목은 숨김 처리됩니다.
-- **WORKTREE**: Worktree 표시 — worktree인 경우 `✓` (초록) + 이름, 아닌 경우 `✗` (빨강)
+- **GIT**: Git 상태 — 브랜치, 원본 브랜치 (worktree일 때), ahead/behind (`↑↓`), untracked (`?`), staged (`+`), modified (`~`), deleted (`-`), conflicts (`!`). 0인 항목은 숨김 처리됩니다.
+- **WORKTREE**: Worktree 표시 — worktree인 경우 `✓` (초록), 아닌 경우 `✗` (빨강)
 
 ### Line 2 — 모델 / 리소스
 - **MODEL**: 사용 중인 Claude 모델

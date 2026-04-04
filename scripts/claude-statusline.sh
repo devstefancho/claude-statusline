@@ -104,12 +104,10 @@ if [ -n "$seven_day_pct" ]; then
     limit_str="${limit_str:+$limit_str }${part}"
 fi
 
-# Build worktree string (colored check/cross)
+# Build worktree string (colored check/cross only)
 worktree_str=""
 if [ -n "$worktree_name" ]; then
-    worktree_str="${GREEN}✓${RESET} ${GRAY}$worktree_name"
-    [ -n "$worktree_orig_branch" ] && worktree_str="$worktree_str ($worktree_orig_branch)"
-    worktree_str="${worktree_str}${RESET}"
+    worktree_str="${GREEN}✓${RESET}"
 else
     worktree_str="${RED}✗${RESET}"
 fi
@@ -120,6 +118,9 @@ if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     # Branch name
     git_branch=$(git -C "$current_dir" symbolic-ref --short HEAD 2>/dev/null || git -C "$current_dir" rev-parse --short HEAD 2>/dev/null)
     git_status_str="$git_branch"
+
+    # Original branch (when in worktree)
+    [ -n "$worktree_orig_branch" ] && git_status_str="$git_status_str ($worktree_orig_branch)"
 
     # Ahead/Behind
     upstream=$(git -C "$current_dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
