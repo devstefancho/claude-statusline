@@ -12,7 +12,9 @@ transcript_path=$(echo "$input" | jq -r '.transcript_path')
 session_id=$(echo "$input" | jq -r '.session_id')
 used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
 five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+five_hour_resets=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
 seven_day_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+seven_day_resets=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
 worktree_name=$(echo "$input" | jq -r '.worktree.name // empty')
 worktree_orig_branch=$(echo "$input" | jq -r '.worktree.original_branch // empty')
 
@@ -68,13 +70,37 @@ GRAY='\033[90m'
 MAGENTA='\033[35m'
 RESET='\033[0m'
 
+# Format remaining time from unix epoch to human readable
+format_remaining() {
+    local resets_at=$1
+    if [ -z "$resets_at" ]; then return; fi
+    local now=$(date +%s)
+    local remaining=$((resets_at - now))
+    if [ $remaining -le 0 ]; then return; fi
+    local days=$((remaining / 86400))
+    local hours=$(( (remaining % 86400) / 3600 ))
+    local mins=$(( (remaining % 3600) / 60 ))
+    if [ $days -gt 0 ]; then
+        echo "${days}d${hours}h"
+    else
+        echo "${hours}h${mins}m"
+    fi
+}
+
 # Build rate limit string (only if data exists)
 limit_str=""
-if [ -n "$five_hour_pct" ] || [ -n "$seven_day_pct" ]; then
+if [ -n "$five_hour_pct" ]; then
     five_h_int=${five_hour_pct%.*}
+    five_h_remaining=$(format_remaining "$five_hour_resets")
+    limit_str="${five_h_int}%"
+    [ -n "$five_h_remaining" ] && limit_str="${limit_str}(${five_h_remaining})"
+fi
+if [ -n "$seven_day_pct" ]; then
     seven_d_int=${seven_day_pct%.*}
-    [ -n "$five_hour_pct" ] && limit_str="5h:${five_h_int}%"
-    [ -n "$seven_day_pct" ] && limit_str="${limit_str:+$limit_str }7d:${seven_d_int}%"
+    seven_d_remaining=$(format_remaining "$seven_day_resets")
+    part="${seven_d_int}%"
+    [ -n "$seven_d_remaining" ] && part="${part}(${seven_d_remaining})"
+    limit_str="${limit_str:+$limit_str }${part}"
 fi
 
 # Build worktree string (only if in worktree session)
@@ -92,7 +118,7 @@ components=(
     "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
     "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
 )
-[ -n "$limit_str" ] && components+=("${RED}LIMIT${RESET} ${GRAY}$limit_str${RESET}")
+[ -n "$limit_str" ] && components+=("${RED}USED${RESET} ${GRAY}$limit_str${RESET}")
 components+=(
     "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
 )
