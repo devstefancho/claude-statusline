@@ -14,7 +14,7 @@ An npx package for easily installing custom statusline configuration for Claude 
 
 ## Features
 
-The statusline is displayed in 3 lines, grouped by meaning:
+The statusline displays in 1-line compact mode by default (expandable to 3 lines via environment variable):
 
 ```
  DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
@@ -137,6 +137,29 @@ Windows uses a PowerShell script, so **jq is not required**.
 2. Adds statusLine configuration to `~/.claude/settings.json`
 
 Restart Claude Code after installation to apply the statusline.
+
+## Display Modes
+
+By default, the statusline displays in **1-line compact mode** to avoid display issues in terminals like Alacritty. You can switch to multi-line mode using the `CLAUDE_STATUSLINE_LINES` environment variable:
+
+```bash
+# 1-line mode (default) — compact, most compatible
+# DIR repo | GIT main ↑2 | CTX 34% | USED 34%(4h25m) | STYLE default
+export CLAUDE_STATUSLINE_LINES=1
+
+# 2-line mode — workspace + details
+# DIR repo | GIT main ↑2 | WORKTREE ✓
+# CTX [████░░░░░░] 34% | USED 34%(4h25m) | STYLE default | MSG hello
+export CLAUDE_STATUSLINE_LINES=2
+
+# 3-line mode — full display
+# DIR repo | GIT main ↑2 | WORKTREE ✓
+# MODEL Opus 4.6 | CTX [████░░░░░░] 34% | USED 34%(4h25m)
+# SID a5bc4601... | STYLE default | MSG hello
+export CLAUDE_STATUSLINE_LINES=3
+```
+
+Add the export to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) to make it persistent.
 
 ## Customization
 

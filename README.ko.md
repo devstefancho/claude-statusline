@@ -14,7 +14,7 @@ Claude Code CLI를 위한 커스텀 statusline 설정을 간편하게 설치할 
 
 ## Features
 
-statusline은 의미별로 그룹핑된 3줄로 표시됩니다:
+statusline은 기본적으로 1줄 컴팩트 모드로 표시됩니다 (환경변수로 3줄까지 확장 가능):
 
 ```
  DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
@@ -137,6 +137,29 @@ Windows에서는 PowerShell 스크립트를 사용하므로 **jq가 필요하지
 2. `~/.claude/settings.json`에 statusLine 설정 추가
 
 설치 후 Claude Code를 재시작하면 statusline이 적용됩니다.
+
+## 표시 모드
+
+기본적으로 **1줄 컴팩트 모드**로 표시되어 Alacritty 등 터미널에서 줄이 가려지는 문제를 방지합니다. `CLAUDE_STATUSLINE_LINES` 환경변수로 줄 수를 변경할 수 있습니다:
+
+```bash
+# 1줄 모드 (기본값) — 컴팩트, 호환성 최고
+# DIR repo | GIT main ↑2 | CTX 34% | USED 34%(4h25m) | STYLE default
+export CLAUDE_STATUSLINE_LINES=1
+
+# 2줄 모드 — 작업 위치 + 상세 정보
+# DIR repo | GIT main ↑2 | WORKTREE ✓
+# CTX [████░░░░░░] 34% | USED 34%(4h25m) | STYLE default | MSG hello
+export CLAUDE_STATUSLINE_LINES=2
+
+# 3줄 모드 — 전체 표시
+# DIR repo | GIT main ↑2 | WORKTREE ✓
+# MODEL Opus 4.6 | CTX [████░░░░░░] 34% | USED 34%(4h25m)
+# SID a5bc4601... | STYLE default | MSG hello
+export CLAUDE_STATUSLINE_LINES=3
+```
+
+셸 프로필(`~/.bashrc`, `~/.zshrc` 등)에 export를 추가하면 영구 적용됩니다.
 
 ## Customization
 

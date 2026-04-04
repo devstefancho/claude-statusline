@@ -125,34 +125,86 @@ if ($seven_day_pct -ne $null) {
     $limit_str += $part
 }
 
-# Build worktree string (only if in worktree session)
+# Build worktree string
 $worktree_str = ""
 if ($worktree_name) {
-    $worktree_str = $worktree_name
-    if ($worktree_orig_branch) {
-        $worktree_str += " ($worktree_orig_branch)"
+    $worktree_str = "${GREEN}$([char]0x2713)${RESET}"
+} else {
+    $worktree_str = "${RED}$([char]0x2717)${RESET}"
+}
+
+# Build git status string
+$git_status_str = ""
+try {
+    $git_check = git -C $current_dir rev-parse --is-inside-work-tree 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $git_branch = git -C $current_dir symbolic-ref --short HEAD 2>$null
+        if (-not $git_branch) { $git_branch = git -C $current_dir rev-parse --short HEAD 2>$null }
+        $git_status_str = $git_branch
+        if ($worktree_orig_branch) { $git_status_str += " ($worktree_orig_branch)" }
+        $upstream = git -C $current_dir rev-parse --abbrev-ref '@{upstream}' 2>$null
+        if ($upstream) {
+            $ahead = git -C $current_dir rev-list --count '@{upstream}..HEAD' 2>$null
+            $behind = git -C $current_dir rev-list --count 'HEAD..@{upstream}' 2>$null
+            if ([int]$ahead -gt 0) { $git_status_str += " ${[char]0x2191}$ahead" }
+            if ([int]$behind -gt 0) { $git_status_str += " ${[char]0x2193}$behind" }
+        }
+        $porcelain = git -C $current_dir status --porcelain 2>$null
+        if ($porcelain) {
+            $lines_arr = $porcelain -split "`n"
+            $untracked = ($lines_arr | Where-Object { $_ -match '^\?\?' }).Count
+            $staged = ($lines_arr | Where-Object { $_ -match '^[MADRC]' }).Count
+            $modified = ($lines_arr | Where-Object { $_ -match '^.M' }).Count
+            $deleted = ($lines_arr | Where-Object { $_ -match '^.D' }).Count
+            if ($untracked -gt 0) { $git_status_str += " ?$untracked" }
+            if ($staged -gt 0) { $git_status_str += " +$staged" }
+            if ($modified -gt 0) { $git_status_str += " ~$modified" }
+            if ($deleted -gt 0) { $git_status_str += " -$deleted" }
+        }
     }
-}
+} catch {}
 
-# Define status line components
-$components = @(
-    "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}",
-    "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}",
-    "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
-)
-if ($limit_str) {
-    $components += "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
-}
-$components += "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
-if ($worktree_str) {
-    $components += "${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
-}
-$components += @(
-    "${CYAN}SID${RESET} ${GRAY}$session_id${RESET}",
-    "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
-)
-
-# Output the status line (join with gray ' | ')
+# --- Build output based on CLAUDE_STATUSLINE_LINES ---
+# Default: 1 line (compact). Set CLAUDE_STATUSLINE_LINES=3 for full 3-line display.
 $PIPE = "${GRAY}|${RESET}"
-$result = " " + ($components -join " $PIPE ")
-Write-Host -NoNewline $result
+$STATUS_LINES = if ($env:CLAUDE_STATUSLINE_LINES) { $env:CLAUDE_STATUSLINE_LINES } else { "1" }
+
+if ($STATUS_LINES -eq "3") {
+    # --- 3-line mode ---
+    $line1 = "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    if ($git_status_str) { $line1 += " $PIPE ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}" }
+    $line1 += " $PIPE ${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
+
+    $line2 = "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    $line2 += " $PIPE ${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    if ($limit_str) { $line2 += " $PIPE ${RED}USED${RESET} ${GRAY}$limit_str${RESET}" }
+
+    $line3 = "${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
+    $line3 += " $PIPE ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+    $line3 += " $PIPE ${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
+
+    Write-Host -NoNewline " $line1`n $line2`n $line3"
+
+} elseif ($STATUS_LINES -eq "2") {
+    # --- 2-line mode ---
+    $line1 = "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    if ($git_status_str) { $line1 += " $PIPE ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}" }
+    $line1 += " $PIPE ${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
+
+    $line2 = "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    if ($limit_str) { $line2 += " $PIPE ${RED}USED${RESET} ${GRAY}$limit_str${RESET}" }
+    $line2 += " $PIPE ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+    $line2 += " $PIPE ${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
+
+    Write-Host -NoNewline " $line1`n $line2"
+
+} else {
+    # --- 1-line mode (default, compact) ---
+    $line = "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    if ($git_status_str) { $line += " $PIPE ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}" }
+    $line += " $PIPE ${MAGENTA}CTX${RESET} ${GRAY}${used_int}%${RESET}"
+    if ($limit_str) { $line += " $PIPE ${RED}USED${RESET} ${GRAY}$limit_str${RESET}" }
+    $line += " $PIPE ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+
+    Write-Host -NoNewline " $line"
+}

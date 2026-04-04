@@ -152,23 +152,53 @@ if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     fi
 fi
 
-# --- Line 1: Workspace ---
+# --- Build output based on CLAUDE_STATUSLINE_LINES ---
+# Default: 1 line (compact). Set CLAUDE_STATUSLINE_LINES=3 for full 3-line display.
 PIPE="${GRAY}|${RESET}"
-line1="${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
-if [ -n "$git_status_str" ]; then
-    line1="$line1 ${PIPE} ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+STATUS_LINES="${CLAUDE_STATUSLINE_LINES:-1}"
+
+if [ "$STATUS_LINES" = "3" ]; then
+    # --- 3-line mode (original) ---
+    line1="${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    if [ -n "$git_status_str" ]; then
+        line1="$line1 ${PIPE} ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    fi
+    line1="$line1 ${PIPE} ${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
+
+    line2="${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    line2="$line2 ${PIPE} ${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    [ -n "$limit_str" ] && line2="$line2 ${PIPE} ${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+
+    line3="${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
+    line3="$line3 ${PIPE} ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+    line3="$line3 ${PIPE} ${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
+
+    printf ' %b\n %b\n %b' "$line1" "$line2" "$line3"
+
+elif [ "$STATUS_LINES" = "2" ]; then
+    # --- 2-line mode ---
+    line1="${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    if [ -n "$git_status_str" ]; then
+        line1="$line1 ${PIPE} ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    fi
+    line1="$line1 ${PIPE} ${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
+
+    line2="${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    [ -n "$limit_str" ] && line2="$line2 ${PIPE} ${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+    line2="$line2 ${PIPE} ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+    line2="$line2 ${PIPE} ${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
+
+    printf ' %b\n %b' "$line1" "$line2"
+
+else
+    # --- 1-line mode (default, compact) ---
+    line="${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    if [ -n "$git_status_str" ]; then
+        line="$line ${PIPE} ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    fi
+    line="$line ${PIPE} ${MAGENTA}CTX${RESET} ${GRAY}${used_int}%${RESET}"
+    [ -n "$limit_str" ] && line="$line ${PIPE} ${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+    line="$line ${PIPE} ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+
+    printf ' %b' "$line"
 fi
-line1="$line1 ${PIPE} ${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
-
-# --- Line 2: Model / Resources ---
-line2="${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
-line2="$line2 ${PIPE} ${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
-[ -n "$limit_str" ] && line2="$line2 ${PIPE} ${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
-
-# --- Line 3: Session ---
-line3="${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
-line3="$line3 ${PIPE} ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
-line3="$line3 ${PIPE} ${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
-
-# Output the status lines
-printf ' %b\n %b\n %b' "$line1" "$line2" "$line3"
