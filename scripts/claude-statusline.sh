@@ -68,6 +68,7 @@ CYAN='\033[36m'
 WHITE='\033[37m'
 GRAY='\033[90m'
 MAGENTA='\033[35m'
+RED='\033[31m'
 RESET='\033[0m'
 
 # Format remaining time from unix epoch to human readable
@@ -103,38 +104,70 @@ if [ -n "$seven_day_pct" ]; then
     limit_str="${limit_str:+$limit_str }${part}"
 fi
 
-# Build worktree string (only if in worktree session)
+# Build worktree string (colored check/cross)
 worktree_str=""
 if [ -n "$worktree_name" ]; then
-    worktree_str="$worktree_name"
+    worktree_str="${GREEN}✓${RESET} ${GRAY}$worktree_name"
     [ -n "$worktree_orig_branch" ] && worktree_str="$worktree_str ($worktree_orig_branch)"
+    worktree_str="${worktree_str}${RESET}"
+else
+    worktree_str="${RED}✗${RESET}"
 fi
 
-RED='\033[31m'
+# Build git status string
+git_status_str=""
+if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Branch name
+    git_branch=$(git -C "$current_dir" symbolic-ref --short HEAD 2>/dev/null || git -C "$current_dir" rev-parse --short HEAD 2>/dev/null)
+    git_status_str="$git_branch"
 
-# Define status line components (순서 변경/추가/삭제 용이)
-components=(
-    "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
-    "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
-    "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
-)
-[ -n "$limit_str" ] && components+=("${RED}USED${RESET} ${GRAY}$limit_str${RESET}")
-components+=(
-    "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
-)
-[ -n "$worktree_str" ] && components+=("${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}")
-components+=(
-    "${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
-    "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
-)
-
-# Output the status line (join with gray ' | ')
-PIPE="${GRAY}|${RESET}"
-result=""
-for i in "${!components[@]}"; do
-    if [ $i -gt 0 ]; then
-        result+=" ${PIPE} "
+    # Ahead/Behind
+    upstream=$(git -C "$current_dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
+    if [ -n "$upstream" ]; then
+        ahead=$(git -C "$current_dir" rev-list --count '@{upstream}..HEAD' 2>/dev/null)
+        behind=$(git -C "$current_dir" rev-list --count 'HEAD..@{upstream}' 2>/dev/null)
+        [ "$ahead" -gt 0 ] 2>/dev/null && git_status_str="$git_status_str ↑$ahead"
+        [ "$behind" -gt 0 ] 2>/dev/null && git_status_str="$git_status_str ↓$behind"
     fi
-    result+="${components[$i]}"
-done
-printf ' %b' "$result"
+
+    # File statuses from git status --porcelain
+    porcelain=$(git -C "$current_dir" status --porcelain 2>/dev/null)
+    if [ -n "$porcelain" ]; then
+        untracked=$(echo "$porcelain" | grep -c '^??')
+        # Staged: first column is [MADRC] (not ? or U)
+        staged=$(echo "$porcelain" | grep -c '^[MADRC]')
+        # Modified (unstaged): second column is M
+        modified=$(echo "$porcelain" | grep -c '^.M')
+        # Deleted (unstaged): second column is D
+        deleted=$(echo "$porcelain" | grep -c '^.D')
+        # Conflicts: both columns are U, or DD, AU, UA patterns
+        conflicts=$(echo "$porcelain" | grep -c '^UU\|^DD\|^AU\|^UA\|^UD\|^DU')
+
+        [ "$untracked" -gt 0 ] && git_status_str="$git_status_str ?$untracked"
+        [ "$staged" -gt 0 ] && git_status_str="$git_status_str +$staged"
+        [ "$modified" -gt 0 ] && git_status_str="$git_status_str ~$modified"
+        [ "$deleted" -gt 0 ] && git_status_str="$git_status_str -$deleted"
+        [ "$conflicts" -gt 0 ] && git_status_str="$git_status_str !$conflicts"
+    fi
+fi
+
+# --- Line 1: Workspace ---
+PIPE="${GRAY}|${RESET}"
+line1="${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+if [ -n "$git_status_str" ]; then
+    line1="$line1 ${PIPE} ${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+fi
+line1="$line1 ${PIPE} ${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
+
+# --- Line 2: Model / Resources ---
+line2="${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+line2="$line2 ${PIPE} ${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+[ -n "$limit_str" ] && line2="$line2 ${PIPE} ${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+
+# --- Line 3: Session ---
+line3="${CYAN}SID${RESET} ${GRAY}$session_id${RESET}"
+line3="$line3 ${PIPE} ${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
+line3="$line3 ${PIPE} ${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
+
+# Output the status lines
+printf ' %b\n %b\n %b' "$line1" "$line2" "$line3"
