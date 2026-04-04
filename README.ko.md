@@ -6,7 +6,11 @@ Claude Code CLI를 위한 커스텀 statusline 설정을 간편하게 설치할 
 
 ## Screenshot
 
-![claude-statusline screenshot](assets/screenshot.png)
+### Without Worktree
+![claude-statusline without worktree](assets/no-worktree.png)
+
+### With Worktree
+![claude-statusline with worktree](assets/worktree.png)
 
 ## Features
 
