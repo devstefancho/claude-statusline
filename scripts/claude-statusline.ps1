@@ -13,7 +13,9 @@ $transcript_path = $data.transcript_path
 $session_id = $data.session_id
 $used_pct = if ($data.context_window.used_percentage) { $data.context_window.used_percentage } else { 0 }
 $five_hour_pct = $data.rate_limits.five_hour.used_percentage
+$five_hour_resets = $data.rate_limits.five_hour.resets_at
 $seven_day_pct = $data.rate_limits.seven_day.used_percentage
+$seven_day_resets = $data.rate_limits.seven_day.resets_at
 $worktree_name = $data.worktree.name
 $worktree_orig_branch = $data.worktree.original_branch
 
@@ -93,14 +95,34 @@ $MAGENTA = "`e[35m"
 $RED = "`e[31m"
 $RESET = "`e[0m"
 
+# Format remaining time from unix epoch to human readable
+function Format-Remaining($resets_at) {
+    if (-not $resets_at) { return "" }
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    $remaining = $resets_at - $now
+    if ($remaining -le 0) { return "" }
+    $days = [math]::Floor($remaining / 86400)
+    $hours = [math]::Floor(($remaining % 86400) / 3600)
+    $mins = [math]::Floor(($remaining % 3600) / 60)
+    if ($days -gt 0) { return "${days}d${hours}h" }
+    else { return "${hours}h${mins}m" }
+}
+
 # Build rate limit string (only if data exists)
 $limit_str = ""
 if ($five_hour_pct -ne $null) {
-    $limit_str = "5h:$([math]::Floor($five_hour_pct))%"
+    $pct = [math]::Floor($five_hour_pct)
+    $rem = Format-Remaining $five_hour_resets
+    $limit_str = "${pct}%"
+    if ($rem) { $limit_str += "(${rem})" }
 }
 if ($seven_day_pct -ne $null) {
+    $pct = [math]::Floor($seven_day_pct)
+    $rem = Format-Remaining $seven_day_resets
+    $part = "${pct}%"
+    if ($rem) { $part += "(${rem})" }
     if ($limit_str) { $limit_str += " " }
-    $limit_str += "7d:$([math]::Floor($seven_day_pct))%"
+    $limit_str += $part
 }
 
 # Build worktree string (only if in worktree session)
@@ -119,7 +141,7 @@ $components = @(
     "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
 )
 if ($limit_str) {
-    $components += "${RED}LIMIT${RESET} ${GRAY}$limit_str${RESET}"
+    $components += "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
 }
 $components += "${YELLOW}STYLE${RESET} ${GRAY}$output_style${RESET}"
 if ($worktree_str) {
