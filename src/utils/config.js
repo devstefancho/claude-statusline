@@ -12,6 +12,7 @@ const SCRIPT_NAME = getScriptName();
 export const CLAUDE_DIR = join(homedir(), '.claude');
 export const SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
 export const STATUSLINE_SCRIPT_PATH = join(CLAUDE_DIR, SCRIPT_NAME);
+export const STATUSLINE_CONFIG_PATH = join(CLAUDE_DIR, 'statusline-config.json');
 export const ASSET_SCRIPT_PATH = join(__dirname, '../../scripts', SCRIPT_NAME);
 
 export function ensureClaudeDir() {
@@ -98,4 +99,31 @@ export function scriptExists() {
 export function hasStatusLineConfig() {
   const settings = readSettings();
   return !!settings.statusLine;
+}
+
+export function readStatuslineConfig() {
+  if (!existsSync(STATUSLINE_CONFIG_PATH)) {
+    return null;
+  }
+  try {
+    const content = readFileSync(STATUSLINE_CONFIG_PATH, 'utf-8');
+    return JSON.parse(content);
+  } catch (error) {
+    console.error(`Error reading statusline config: ${error.message}`);
+    return null;
+  }
+}
+
+export function writeStatuslineConfig(config) {
+  try {
+    writeFileSync(STATUSLINE_CONFIG_PATH, JSON.stringify(config, null, 2));
+    return true;
+  } catch (error) {
+    console.error(`Error writing statusline config: ${error.message}`);
+    return false;
+  }
+}
+
+export function statuslineConfigExists() {
+  return existsSync(STATUSLINE_CONFIG_PATH);
 }

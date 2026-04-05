@@ -25,6 +25,7 @@ import {
   CLAUDE_DIR,
   SETTINGS_PATH,
   STATUSLINE_SCRIPT_PATH,
+  STATUSLINE_CONFIG_PATH,
   ensureClaudeDir,
   readSettings,
   writeSettings,
@@ -34,6 +35,9 @@ import {
   backupFile,
   scriptExists,
   hasStatusLineConfig,
+  readStatuslineConfig,
+  writeStatuslineConfig,
+  statuslineConfigExists,
 } from '../../src/utils/config.js';
 
 describe('config.js', () => {
@@ -65,6 +69,10 @@ describe('config.js', () => {
 
     it('should have correct STATUSLINE_SCRIPT_PATH', () => {
       expect(STATUSLINE_SCRIPT_PATH).toBe('/home/testuser/.claude/claude-statusline.sh');
+    });
+
+    it('should have correct STATUSLINE_CONFIG_PATH', () => {
+      expect(STATUSLINE_CONFIG_PATH).toBe('/home/testuser/.claude/statusline-config.json');
     });
   });
 
@@ -314,6 +322,91 @@ describe('config.js', () => {
       existsSync.mockReturnValue(false);
 
       const result = hasStatusLineConfig();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('readStatuslineConfig()', () => {
+    it('should return null if config file does not exist', () => {
+      existsSync.mockReturnValue(false);
+
+      const result = readStatuslineConfig();
+
+      expect(result).toBe(null);
+    });
+
+    it('should return parsed config if file exists', () => {
+      existsSync.mockReturnValue(true);
+      readFileSync.mockReturnValue('{"version":1,"layout":{"line1":["dir"]}}');
+
+      const result = readStatuslineConfig();
+
+      expect(result).toEqual({ version: 1, layout: { line1: ['dir'] } });
+    });
+
+    it('should return null and log error on parse error', () => {
+      existsSync.mockReturnValue(true);
+      readFileSync.mockReturnValue('bad json');
+
+      const result = readStatuslineConfig();
+
+      expect(result).toBe(null);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it('should return null and log error on read error', () => {
+      existsSync.mockReturnValue(true);
+      readFileSync.mockImplementation(() => {
+        throw new Error('Read error');
+      });
+
+      const result = readStatuslineConfig();
+
+      expect(result).toBe(null);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error reading statusline config: Read error');
+    });
+  });
+
+  describe('writeStatuslineConfig()', () => {
+    it('should write config and return true', () => {
+      writeFileSync.mockImplementation(() => {});
+
+      const config = { version: 1, layout: { line1: ['dir'] } };
+      const result = writeStatuslineConfig(config);
+
+      expect(result).toBe(true);
+      expect(writeFileSync).toHaveBeenCalledWith(
+        STATUSLINE_CONFIG_PATH,
+        JSON.stringify(config, null, 2)
+      );
+    });
+
+    it('should return false and log error on write error', () => {
+      writeFileSync.mockImplementation(() => {
+        throw new Error('Write error');
+      });
+
+      const result = writeStatuslineConfig({ version: 1 });
+
+      expect(result).toBe(false);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error writing statusline config: Write error');
+    });
+  });
+
+  describe('statuslineConfigExists()', () => {
+    it('should return true if config exists', () => {
+      existsSync.mockReturnValue(true);
+
+      const result = statuslineConfigExists();
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false if config does not exist', () => {
+      existsSync.mockReturnValue(false);
+
+      const result = statuslineConfigExists();
 
       expect(result).toBe(false);
     });
