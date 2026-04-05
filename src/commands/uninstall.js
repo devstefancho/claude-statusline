@@ -5,7 +5,9 @@ import {
   removeStatusLineConfig,
   scriptExists,
   hasStatusLineConfig,
+  statuslineConfigExists,
   STATUSLINE_SCRIPT_PATH,
+  STATUSLINE_CONFIG_PATH,
   SETTINGS_PATH,
 } from '../utils/config.js';
 
@@ -14,8 +16,9 @@ export function uninstall(options) {
 
   const scriptAlreadyExists = scriptExists();
   const configAlreadyExists = hasStatusLineConfig();
+  const layoutConfigExists = statuslineConfigExists();
 
-  if (!scriptAlreadyExists && !configAlreadyExists) {
+  if (!scriptAlreadyExists && !configAlreadyExists && !layoutConfigExists) {
     console.log('✓ Nothing to uninstall. Statusline is not installed.');
     return;
   }
@@ -43,6 +46,16 @@ export function uninstall(options) {
     }
   } else if (scriptAlreadyExists && options.keepScript) {
     console.log(`  ⚠ Script kept at: ${STATUSLINE_SCRIPT_PATH}`);
+  }
+
+  // Remove layout config file
+  if (layoutConfigExists) {
+    try {
+      unlinkSync(STATUSLINE_CONFIG_PATH);
+      console.log(`  ✓ Removed ${STATUSLINE_CONFIG_PATH}`);
+    } catch (error) {
+      console.error(`  ✗ Failed to remove layout config: ${error.message}`);
+    }
   }
 
   console.log('\n✓ Uninstallation complete!');

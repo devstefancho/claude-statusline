@@ -8,17 +8,18 @@ import {
   backupFile,
   scriptExists,
   hasStatusLineConfig,
+  writeStatuslineConfig,
   STATUSLINE_SCRIPT_PATH,
+  STATUSLINE_CONFIG_PATH,
   SETTINGS_PATH,
 } from '../utils/config.js';
 import { checkAllDependencies, printDependencyStatus } from '../utils/dependency.js';
 import { isWindows, getScriptName } from '../utils/platform.js';
+import { DEFAULT_LAYOUT } from '../utils/items.js';
+import { runInteractiveSetup } from '../ui/prompts.js';
 
-export function install(options) {
+export async function install(options) {
   console.log('Claude Statusline Installer\n');
-
-  // Debug: log platform info for troubleshooting
-  console.log(`Debug: platform()=${platform()}, isWindows()=${isWindows()}`);
 
   // Check dependencies
   const deps = checkAllDependencies();
@@ -68,6 +69,18 @@ export function install(options) {
     }
   }
 
+  // Determine layout: interactive or default
+  let layout = DEFAULT_LAYOUT;
+
+  if (options.interactive && !options.default) {
+    try {
+      const result = await runInteractiveSetup();
+      layout = result.layout;
+    } catch (error) {
+      console.warn('\n⚠ Interactive setup cancelled. Using default layout.');
+    }
+  }
+
   // Install
   console.log('\nInstalling...');
 
@@ -83,6 +96,15 @@ export function install(options) {
     process.exit(1);
   }
 
+  // Write statusline config
+  const configData = { version: 1, layout };
+  if (writeStatuslineConfig(configData)) {
+    console.log(`  ✓ Saved layout config to ${STATUSLINE_CONFIG_PATH}`);
+  } else {
+    console.error('  ✗ Failed to save statusline config');
+    process.exit(1);
+  }
+
   // Update settings.json
   const settings = readSettings();
   const newSettings = addStatusLineConfig(settings);
@@ -94,6 +116,10 @@ export function install(options) {
   }
 
   console.log('\n✓ Installation complete!');
+  console.log('\nLayout:');
+  if (layout.line1.length > 0) console.log(`  Line 1: ${layout.line1.join(', ')}`);
+  if (layout.line2.length > 0) console.log(`  Line 2: ${layout.line2.join(', ')}`);
+  if (layout.line3.length > 0) console.log(`  Line 3: ${layout.line3.join(', ')}`);
   console.log('\nRestart Claude Code to apply changes.');
 
   // Platform-specific notes
