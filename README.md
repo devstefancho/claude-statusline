@@ -18,24 +18,26 @@ The statusline is displayed in 3 lines, grouped by meaning:
 
 ```
  DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
- MODEL Opus 4.6 (1M context) | CTX [████░░░░░░] 8% | USED 64%(0h1m) 23%(5d21h)
+ MODEL Opus 4.6 (1M context) | CTX [████░░░░░░] 8% | USED 64%(0h1m) 23%(5d21h) | LINES +42 -15
  SID a5bc4601... | STYLE default | MSG hi
 ```
 
-### Line 1 — Workspace
-- **DIR**: Current working directory (relative path from git root)
-- **GIT**: Git status — branch, original branch (in worktree), ahead/behind (`↑↓`), untracked (`?`), staged (`+`), modified (`~`), deleted (`-`), conflicts (`!`). Items with 0 count are hidden.
-- **WORKTREE**: Worktree indicator — `✓` (green) if in a worktree, `✗` (red) if not
+### Available Items
 
-### Line 2 — Model / Resources
-- **MODEL**: Active Claude model
-- **CTX**: Context window usage (progress bar)
-- **USED**: Rate limit usage (5-hour / 7-day with remaining time)
+| Item | Description | Default Line |
+|------|-------------|:------------:|
+| `dir` | Current working directory (relative path from git root) | 1 |
+| `git` | Branch, ahead/behind, file status (untracked/staged/modified/deleted/conflicts) | 1 |
+| `worktree` | Worktree indicator — `✓` (green) / `✗` (red) | 1 |
+| `model` | Active Claude model name | 2 |
+| `ctx` | Context window usage (progress bar) | 2 |
+| `used` | Rate limit usage (5-hour / 7-day with remaining time) | 2 |
+| `lines` | Lines added/removed in session (`+42 -15`) | 2 |
+| `sid` | Session ID | 3 |
+| `style` | Output style | 3 |
+| `msg` | Last user message (preview, truncated to 200 chars) | 3 |
 
-### Line 3 — Session
-- **SID**: Session ID
-- **STYLE**: Output style
-- **MSG**: Last user message (preview)
+All items can be toggled on/off and assigned to any line (1, 2, or 3) via interactive install.
 
 ## Supported Platforms
 
@@ -58,6 +60,20 @@ npx github:devstefancho/claude-statusline install
 npx @devstefancho/claude-statusline install
 ```
 
+### Interactive Install
+
+Select which items to display and assign them to lines interactively:
+
+```bash
+npx @devstefancho/claude-statusline install -i
+```
+
+The interactive mode lets you:
+1. **Select items** — Toggle items on/off with space, toggle all with `a`
+2. **Assign lines** — Place each item on Line 1, 2, or 3 (or use the default layout)
+
+Your choices are saved to `~/.claude/statusline-config.json` and the scripts read this config at runtime.
+
 ### Options
 
 ```bash
@@ -66,6 +82,12 @@ npx @devstefancho/claude-statusline install --force
 
 # Backup existing files before install
 npx @devstefancho/claude-statusline install --backup
+
+# Interactive item & layout selection
+npx @devstefancho/claude-statusline install -i
+
+# Skip interactive mode, use default layout
+npx @devstefancho/claude-statusline install --default
 ```
 
 ## Commands
@@ -82,6 +104,8 @@ npx @devstefancho/claude-statusline install [options]
 |--------|-------------|
 | `-f, --force` | Overwrite existing files |
 | `-b, --backup` | Backup existing files before install |
+| `-i, --interactive` | Interactively select items and line layout |
+| `--default` | Skip interactive mode, use default layout |
 
 ### uninstall
 
@@ -97,7 +121,7 @@ npx @devstefancho/claude-statusline uninstall [options]
 
 ### status
 
-Check current installation status.
+Check current installation status, including layout configuration.
 
 ```bash
 npx @devstefancho/claude-statusline status
@@ -134,13 +158,44 @@ Windows uses a PowerShell script, so **jq is not required**.
 1. Installs platform-specific script file:
    - macOS/Linux: `~/.claude/claude-statusline.sh`
    - Windows: `%USERPROFILE%\.claude\claude-statusline.ps1`
-2. Adds statusLine configuration to `~/.claude/settings.json`
+2. Saves layout config to `~/.claude/statusline-config.json`
+3. Adds statusLine configuration to `~/.claude/settings.json`
 
 Restart Claude Code after installation to apply the statusline.
 
 ## Customization
 
-After installation, you can customize the statusline by editing the script file directly.
+### Via Interactive Install
+
+Re-run with `--force` and `-i` to reconfigure items and layout:
+
+```bash
+npx @devstefancho/claude-statusline install --force -i
+```
+
+### Via Config File
+
+Edit the layout config directly:
+
+```bash
+vim ~/.claude/statusline-config.json
+```
+
+Example config:
+```json
+{
+  "version": 1,
+  "layout": {
+    "line1": ["dir", "git", "worktree"],
+    "line2": ["model", "ctx", "used", "lines"],
+    "line3": ["sid", "style", "msg"]
+  }
+}
+```
+
+### Via Script File
+
+You can also edit the script file directly for advanced customization:
 
 ```bash
 # macOS/Linux
