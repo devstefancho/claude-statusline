@@ -5,7 +5,9 @@ input=$(cat)
 
 # Read layout config
 CONFIG_FILE="$HOME/.claude/statusline-config.json"
+COMPACT_MODE="false"
 if [ -f "$CONFIG_FILE" ]; then
+    COMPACT_MODE=$(jq -r '.compact // false' "$CONFIG_FILE" 2>/dev/null)
     LINE1_ITEMS=$(jq -r '.layout.line1[]?' "$CONFIG_FILE" 2>/dev/null)
     LINE2_ITEMS=$(jq -r '.layout.line2[]?' "$CONFIG_FILE" 2>/dev/null)
     LINE3_ITEMS=$(jq -r '.layout.line3[]?' "$CONFIG_FILE" 2>/dev/null)
@@ -63,11 +65,19 @@ format_remaining() {
     fi
 }
 
-# --- Render functions ---
-# Each outputs a colored segment string or nothing if data is unavailable.
-# All JSON fields are parsed above; render functions use those variables.
+# Detect 1M context window model from display name
+is_1m_model() {
+    shopt -s nocasematch
+    local result=1
+    if [[ "$model_name" =~ (^|[^a-z0-9])1m([^a-z0-9]|$) ]]; then
+        result=0
+    fi
+    shopt -u nocasematch
+    return $result
+}
 
-render_dir() {
+# Compute dir relative path (shared by render_dir and render_proj)
+compute_relative_path() {
     local relative_path=""
     if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         local git_root
@@ -90,10 +100,11 @@ render_dir() {
             relative_path="$(basename "$project_dir")/$rel_path"
         fi
     fi
-    echo "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    echo "$relative_path"
 }
 
-render_git() {
+# Compute git status string (shared by render_git and render_proj)
+compute_git_status() {
     if ! git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         return
     fi
@@ -102,10 +113,8 @@ render_git() {
     git_branch=$(git -C "$current_dir" symbolic-ref --short HEAD 2>/dev/null || git -C "$current_dir" rev-parse --short HEAD 2>/dev/null)
     local git_status_str="$git_branch"
 
-    # Original branch (when in worktree)
     [ -n "$worktree_orig_branch" ] && git_status_str="$git_status_str ($worktree_orig_branch)"
 
-    # Ahead/Behind
     local upstream
     upstream=$(git -C "$current_dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
     if [ -n "$upstream" ]; then
@@ -116,7 +125,6 @@ render_git() {
         [ "$behind" -gt 0 ] 2>/dev/null && git_status_str="$git_status_str ↓$behind"
     fi
 
-    # File statuses from git status --porcelain
     local porcelain
     porcelain=$(git -C "$current_dir" status --porcelain 2>/dev/null)
     if [ -n "$porcelain" ]; then
@@ -134,6 +142,23 @@ render_git() {
         [ "$conflicts" -gt 0 ] && git_status_str="$git_status_str !$conflicts"
     fi
 
+    echo "$git_status_str"
+}
+
+# --- Render functions ---
+# Each outputs a colored segment string or nothing if data is unavailable.
+# All JSON fields are parsed above; render functions use those variables.
+
+render_dir() {
+    local relative_path
+    relative_path=$(compute_relative_path)
+    echo "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+}
+
+render_git() {
+    local git_status_str
+    git_status_str=$(compute_git_status)
+    [ -z "$git_status_str" ] && return
     echo "${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
 }
 
@@ -147,19 +172,57 @@ render_worktree() {
     echo "${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
 }
 
+render_proj() {
+    local relative_path git_status_str
+    relative_path=$(compute_relative_path)
+    git_status_str=$(compute_git_status)
+
+    local inside=""
+    if [ -n "$worktree_name" ]; then
+        inside="${GREEN}✓${RESET} "
+    fi
+    inside="${inside}${BLUE}${relative_path}${RESET}"
+    if [ -n "$git_status_str" ]; then
+        inside="${inside}  ${GREEN}${git_status_str}${RESET}"
+    fi
+    if [ -n "$lines_added" ] || [ -n "$lines_removed" ]; then
+        inside="${inside}  ${GREEN}+${lines_added:-0}${RESET}${GRAY}/${RESET}${RED}-${lines_removed:-0}${RESET}"
+    fi
+    echo "${GRAY}[${RESET}${inside}${GRAY}]${RESET}"
+}
+
 render_model() {
-    echo "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    if [ "$COMPACT_MODE" = "true" ]; then
+        local name="${model_name#Claude }"
+        echo "${GREEN}${name}${RESET}"
+    else
+        echo "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    fi
 }
 
 render_ctx() {
     local used_int=${used_pct%.*}
-    local filled=$((used_int / 10))
-    local empty=$((10 - filled))
-    local ctx_bar="["
-    for ((i=0; i<filled; i++)); do ctx_bar+="█"; done
-    for ((i=0; i<empty; i++)); do ctx_bar+="░"; done
-    ctx_bar+="]"
-    echo "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    if [ "$COMPACT_MODE" = "true" ]; then
+        local color
+        if is_1m_model; then
+            if [ "$used_int" -lt 30 ]; then color="$GRAY"
+            elif [ "$used_int" -lt 50 ]; then color="$YELLOW"
+            else color="$RED"; fi
+        else
+            if [ "$used_int" -lt 50 ]; then color="$GRAY"
+            elif [ "$used_int" -lt 80 ]; then color="$YELLOW"
+            else color="$RED"; fi
+        fi
+        echo "${color}${used_int}%${RESET}"
+    else
+        local filled=$((used_int / 10))
+        local empty=$((10 - filled))
+        local ctx_bar="["
+        for ((i=0; i<filled; i++)); do ctx_bar+="█"; done
+        for ((i=0; i<empty; i++)); do ctx_bar+="░"; done
+        ctx_bar+="]"
+        echo "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    fi
 }
 
 render_used() {
@@ -180,7 +243,11 @@ render_used() {
         limit_str="${limit_str:+$limit_str }${part}"
     fi
     [ -z "$limit_str" ] && return
-    echo "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+    if [ "$COMPACT_MODE" = "true" ]; then
+        echo "${GRAY}$limit_str${RESET}"
+    else
+        echo "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+    fi
 }
 
 render_lines() {
@@ -221,6 +288,7 @@ build_line() {
             dir)      seg=$(render_dir) ;;
             git)      seg=$(render_git) ;;
             worktree) seg=$(render_worktree) ;;
+            proj)     seg=$(render_proj) ;;
             model)    seg=$(render_model) ;;
             ctx)      seg=$(render_ctx) ;;
             used)     seg=$(render_used) ;;

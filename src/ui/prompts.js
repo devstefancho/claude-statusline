@@ -1,5 +1,29 @@
-import { checkbox, confirm, input } from '@inquirer/prompts';
-import { ITEMS, DEFAULT_LAYOUT } from '../utils/items.js';
+import { checkbox, confirm, input, select } from '@inquirer/prompts';
+import { ITEMS, DEFAULT_LAYOUT, COMPACT_LAYOUT } from '../utils/items.js';
+
+export async function promptPreset() {
+  const choice = await select({
+    message: 'Choose a layout preset',
+    choices: [
+      {
+        name: 'Compact     — Single line, essential info only',
+        value: 'compact',
+        description: 'Example:  45% | [✓ repo/path  main ↑2 ~1  +42/-15] | Opus 4.7 | 60%(2h30m) 20%(3d5h)',
+      },
+      {
+        name: 'Multi-line  — Three lines, includes last message & session id',
+        value: 'default',
+        description: 'Line 1: dir, git, worktree  |  Line 2: model, ctx, used, lines  |  Line 3: sid, style, msg',
+      },
+      {
+        name: 'Custom      — Pick items and arrange manually',
+        value: 'custom',
+        description: 'Choose which items to show and assign them to lines 1, 2, or 3',
+      },
+    ],
+  });
+  return choice;
+}
 
 export async function promptItemSelection() {
   const allItemIds = ITEMS.map(i => i.id);
@@ -78,7 +102,14 @@ function buildDefaultLayout(selectedItems) {
 }
 
 export async function runInteractiveSetup() {
+  const preset = await promptPreset();
+  if (preset === 'compact') {
+    return { layout: COMPACT_LAYOUT, compact: true };
+  }
+  if (preset === 'default') {
+    return { layout: DEFAULT_LAYOUT, compact: false };
+  }
   const selectedItems = await promptItemSelection();
   const layout = await promptLineAssignment(selectedItems);
-  return { layout };
+  return { layout, compact: false };
 }

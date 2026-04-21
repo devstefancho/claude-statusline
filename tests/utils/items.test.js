@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ITEMS, DEFAULT_LAYOUT, getItemById, getDefaultItems, formatItemsHelp } from '../../src/utils/items.js';
+import { ITEMS, DEFAULT_LAYOUT, COMPACT_LAYOUT, getItemById, getDefaultItems, formatItemsHelp } from '../../src/utils/items.js';
 
 describe('items.js', () => {
   describe('ITEMS', () => {
@@ -8,6 +8,7 @@ describe('items.js', () => {
       expect(ids).toContain('dir');
       expect(ids).toContain('git');
       expect(ids).toContain('worktree');
+      expect(ids).toContain('proj');
       expect(ids).toContain('model');
       expect(ids).toContain('ctx');
       expect(ids).toContain('used');
@@ -39,6 +40,14 @@ describe('items.js', () => {
       expect(DEFAULT_LAYOUT.line1).toEqual(['dir', 'git', 'worktree']);
       expect(DEFAULT_LAYOUT.line2).toEqual(['model', 'ctx', 'used', 'lines']);
       expect(DEFAULT_LAYOUT.line3).toEqual(['sid', 'style', 'msg']);
+    });
+  });
+
+  describe('COMPACT_LAYOUT', () => {
+    it('should place all items on line1', () => {
+      expect(COMPACT_LAYOUT.line1).toEqual(['ctx', 'proj', 'model', 'used']);
+      expect(COMPACT_LAYOUT.line2).toEqual([]);
+      expect(COMPACT_LAYOUT.line3).toEqual([]);
     });
   });
 

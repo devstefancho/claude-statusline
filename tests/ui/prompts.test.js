@@ -5,11 +5,12 @@ vi.mock('@inquirer/prompts', () => ({
   checkbox: vi.fn(),
   confirm: vi.fn(),
   input: vi.fn(),
+  select: vi.fn(),
 }));
 
-import { checkbox, confirm, input } from '@inquirer/prompts';
-import { promptItemSelection, promptLineAssignment, runInteractiveSetup } from '../../src/ui/prompts.js';
-import { ITEMS } from '../../src/utils/items.js';
+import { checkbox, confirm, input, select } from '@inquirer/prompts';
+import { promptItemSelection, promptLineAssignment, promptPreset, runInteractiveSetup } from '../../src/ui/prompts.js';
+import { ITEMS, DEFAULT_LAYOUT, COMPACT_LAYOUT } from '../../src/utils/items.js';
 
 describe('prompts.js', () => {
   let consoleLogSpy;
@@ -145,14 +146,57 @@ describe('prompts.js', () => {
     });
   });
 
+  describe('promptPreset()', () => {
+    it('should return the selected preset value', async () => {
+      select.mockResolvedValue('compact');
+      const result = await promptPreset();
+      expect(result).toBe('compact');
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Choose a layout preset' })
+      );
+    });
+
+    it('should offer compact, default, and custom choices', async () => {
+      select.mockResolvedValue('default');
+      await promptPreset();
+      const call = select.mock.calls[0][0];
+      const values = call.choices.map(c => c.value);
+      expect(values).toEqual(['compact', 'default', 'custom']);
+    });
+  });
+
   describe('runInteractiveSetup()', () => {
-    it('should run item selection then line assignment', async () => {
+    it('should return COMPACT_LAYOUT when compact preset is picked', async () => {
+      select.mockResolvedValue('compact');
+
+      const result = await runInteractiveSetup();
+
+      expect(result.layout).toEqual(COMPACT_LAYOUT);
+      expect(result.compact).toBe(true);
+      expect(checkbox).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('should return DEFAULT_LAYOUT when default preset is picked', async () => {
+      select.mockResolvedValue('default');
+
+      const result = await runInteractiveSetup();
+
+      expect(result.layout).toEqual(DEFAULT_LAYOUT);
+      expect(result.compact).toBe(false);
+      expect(checkbox).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('should run item selection then line assignment for custom preset', async () => {
+      select.mockResolvedValue('custom');
       checkbox.mockResolvedValue(['dir', 'model']);
       confirm.mockResolvedValue(true);
 
       const result = await runInteractiveSetup();
 
       expect(result).toHaveProperty('layout');
+      expect(result.compact).toBe(false);
       expect(result.layout).toHaveProperty('line1');
       expect(result.layout).toHaveProperty('line2');
       expect(result.layout).toHaveProperty('line3');
@@ -160,7 +204,8 @@ describe('prompts.js', () => {
       expect(confirm).toHaveBeenCalled();
     });
 
-    it('should pass selected items to line assignment', async () => {
+    it('should pass selected items to line assignment in custom preset', async () => {
+      select.mockResolvedValue('custom');
       checkbox.mockResolvedValue(['sid', 'style', 'msg']);
       confirm.mockResolvedValue(true);
 
