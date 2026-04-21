@@ -68,6 +68,13 @@ function Is-1MModel {
     return ($model_name -match '(^|[^A-Za-z0-9])1[Mm]([^A-Za-z0-9]|$)')
 }
 
+# Pick color from (gray, yellow, red) by thresholds (warn, crit)
+function Pick-Color($val, $warn, $crit) {
+    if ($val -lt $warn) { return $GRAY }
+    if ($val -lt $crit) { return $YELLOW }
+    return $RED
+}
+
 function Compute-RelativePath {
     try {
         $git_check = git -C $current_dir rev-parse --is-inside-work-tree 2>$null
@@ -134,17 +141,20 @@ function Compute-GitStatus {
     return $git_status_str
 }
 
+# Precompute once — Render-Dir/Render-Git/Render-Proj all read these,
+# so git is invoked at most a single set of times regardless of layout.
+$relativePath = Compute-RelativePath
+$gitStatusStr = Compute-GitStatus
+
 # --- Render functions ---
 
 function Render-Dir {
-    $relative_path = Compute-RelativePath
-    return "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    return "${BLUE}DIR${RESET} ${GRAY}$relativePath${RESET}"
 }
 
 function Render-Git {
-    $git_status_str = Compute-GitStatus
-    if (-not $git_status_str) { return "" }
-    return "${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    if (-not $gitStatusStr) { return "" }
+    return "${GREEN}GIT${RESET} ${GRAY}$gitStatusStr${RESET}"
 }
 
 function Render-Worktree {
@@ -156,13 +166,10 @@ function Render-Worktree {
 }
 
 function Render-Proj {
-    $relative_path = Compute-RelativePath
-    $git_status_str = Compute-GitStatus
-
     $inside = ""
     if ($worktree_name) { $inside = "${GREEN}✓${RESET} " }
-    $inside += "${BLUE}${relative_path}${RESET}"
-    if ($git_status_str) { $inside += "  ${GREEN}${git_status_str}${RESET}" }
+    $inside += "${BLUE}${relativePath}${RESET}"
+    if ($gitStatusStr) { $inside += "  ${GREEN}${gitStatusStr}${RESET}" }
     if ($lines_added -ne $null -or $lines_removed -ne $null) {
         $a = if ($lines_added) { $lines_added } else { 0 }
         $r = if ($lines_removed) { $lines_removed } else { 0 }
@@ -173,8 +180,7 @@ function Render-Proj {
 
 function Render-Model {
     if ($compactMode) {
-        $name = $model_name
-        if ($name -like 'Claude *') { $name = $name.Substring(7) }
+        $name = $model_name -replace '^Claude ', ''
         return "${GREEN}${name}${RESET}"
     }
     return "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
@@ -183,16 +189,7 @@ function Render-Model {
 function Render-Ctx {
     $used_int = [math]::Floor($used_pct)
     if ($compactMode) {
-        $color = $GRAY
-        if (Is-1MModel) {
-            if ($used_int -lt 30) { $color = $GRAY }
-            elseif ($used_int -lt 50) { $color = $YELLOW }
-            else { $color = $RED }
-        } else {
-            if ($used_int -lt 50) { $color = $GRAY }
-            elseif ($used_int -lt 80) { $color = $YELLOW }
-            else { $color = $RED }
-        }
+        $color = if (Is-1MModel) { Pick-Color $used_int 30 50 } else { Pick-Color $used_int 50 80 }
         return "${color}${used_int}%${RESET}"
     }
     $filled = [math]::Floor($used_int / 10)

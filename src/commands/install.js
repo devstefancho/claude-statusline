@@ -69,20 +69,21 @@ export async function install(options) {
     }
   }
 
-  // Determine layout: compact flag, interactive, or default
   let layout = DEFAULT_LAYOUT;
   let compact = false;
 
-  if (options.compact && !options.default) {
-    layout = COMPACT_LAYOUT;
-    compact = true;
-  } else if (options.interactive && !options.default) {
-    try {
-      const result = await runInteractiveSetup();
-      layout = result.layout;
-      compact = !!result.compact;
-    } catch (error) {
-      console.warn('\n⚠ Interactive setup cancelled. Using default layout.');
+  if (!options.default) {
+    if (options.compact) {
+      layout = COMPACT_LAYOUT;
+      compact = true;
+    } else if (options.interactive) {
+      try {
+        const result = await runInteractiveSetup();
+        layout = result.layout;
+        compact = result.compact;
+      } catch (error) {
+        console.warn('\n⚠ Interactive setup cancelled. Using default layout.');
+      }
     }
   }
 

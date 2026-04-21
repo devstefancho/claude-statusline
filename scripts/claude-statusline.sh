@@ -1,16 +1,22 @@
 #!/bin/bash
 
-# Read JSON input from stdin
 input=$(cat)
 
-# Read layout config
+# Read layout config (single jq invocation)
 CONFIG_FILE="$HOME/.claude/statusline-config.json"
-COMPACT_MODE="false"
+COMPACT_MODE=""
 if [ -f "$CONFIG_FILE" ]; then
-    COMPACT_MODE=$(jq -r '.compact // false' "$CONFIG_FILE" 2>/dev/null)
-    LINE1_ITEMS=$(jq -r '.layout.line1[]?' "$CONFIG_FILE" 2>/dev/null)
-    LINE2_ITEMS=$(jq -r '.layout.line2[]?' "$CONFIG_FILE" 2>/dev/null)
-    LINE3_ITEMS=$(jq -r '.layout.line3[]?' "$CONFIG_FILE" 2>/dev/null)
+    {
+        IFS= read -r COMPACT_MODE
+        IFS= read -r LINE1_ITEMS
+        IFS= read -r LINE2_ITEMS
+        IFS= read -r LINE3_ITEMS
+    } < <(jq -r '
+        (if .compact then "1" else "" end),
+        ((.layout.line1 // []) | join(" ")),
+        ((.layout.line2 // []) | join(" ")),
+        ((.layout.line3 // []) | join(" "))
+    ' "$CONFIG_FILE" 2>/dev/null)
 else
     LINE1_ITEMS="dir git worktree"
     LINE2_ITEMS="model ctx used lines"
@@ -65,18 +71,18 @@ format_remaining() {
     fi
 }
 
-# Detect 1M context window model from display name
 is_1m_model() {
-    shopt -s nocasematch
-    local result=1
-    if [[ "$model_name" =~ (^|[^a-z0-9])1m([^a-z0-9]|$) ]]; then
-        result=0
-    fi
-    shopt -u nocasematch
-    return $result
+    [[ "$model_name" =~ (^|[^a-zA-Z0-9])1[mM]([^a-zA-Z0-9]|$) ]]
 }
 
-# Compute dir relative path (shared by render_dir and render_proj)
+# Pick color from (gray, yellow, red) by thresholds (warn, crit)
+pick_color() {
+    local val=$1 warn=$2 crit=$3
+    if [ "$val" -lt "$warn" ]; then echo "$GRAY"
+    elif [ "$val" -lt "$crit" ]; then echo "$YELLOW"
+    else echo "$RED"; fi
+}
+
 compute_relative_path() {
     local relative_path=""
     if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -103,7 +109,6 @@ compute_relative_path() {
     echo "$relative_path"
 }
 
-# Compute git status string (shared by render_git and render_proj)
 compute_git_status() {
     if ! git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         return
@@ -145,21 +150,21 @@ compute_git_status() {
     echo "$git_status_str"
 }
 
+# Precompute once — render_dir/render_git/render_proj all read these globals,
+# so git is invoked at most a single set of times regardless of layout.
+RELATIVE_PATH=$(compute_relative_path)
+GIT_STATUS_STR=$(compute_git_status)
+
 # --- Render functions ---
 # Each outputs a colored segment string or nothing if data is unavailable.
-# All JSON fields are parsed above; render functions use those variables.
 
 render_dir() {
-    local relative_path
-    relative_path=$(compute_relative_path)
-    echo "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    echo "${BLUE}DIR${RESET} ${GRAY}$RELATIVE_PATH${RESET}"
 }
 
 render_git() {
-    local git_status_str
-    git_status_str=$(compute_git_status)
-    [ -z "$git_status_str" ] && return
-    echo "${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    [ -z "$GIT_STATUS_STR" ] && return
+    echo "${GREEN}GIT${RESET} ${GRAY}$GIT_STATUS_STR${RESET}"
 }
 
 render_worktree() {
@@ -173,18 +178,10 @@ render_worktree() {
 }
 
 render_proj() {
-    local relative_path git_status_str
-    relative_path=$(compute_relative_path)
-    git_status_str=$(compute_git_status)
-
     local inside=""
-    if [ -n "$worktree_name" ]; then
-        inside="${GREEN}✓${RESET} "
-    fi
-    inside="${inside}${BLUE}${relative_path}${RESET}"
-    if [ -n "$git_status_str" ]; then
-        inside="${inside}  ${GREEN}${git_status_str}${RESET}"
-    fi
+    [ -n "$worktree_name" ] && inside="${GREEN}✓${RESET} "
+    inside="${inside}${BLUE}${RELATIVE_PATH}${RESET}"
+    [ -n "$GIT_STATUS_STR" ] && inside="${inside}  ${GREEN}${GIT_STATUS_STR}${RESET}"
     if [ -n "$lines_added" ] || [ -n "$lines_removed" ]; then
         inside="${inside}  ${GREEN}+${lines_added:-0}${RESET}${GRAY}/${RESET}${RED}-${lines_removed:-0}${RESET}"
     fi
@@ -192,9 +189,8 @@ render_proj() {
 }
 
 render_model() {
-    if [ "$COMPACT_MODE" = "true" ]; then
-        local name="${model_name#Claude }"
-        echo "${GREEN}${name}${RESET}"
+    if [ -n "$COMPACT_MODE" ]; then
+        echo "${GREEN}${model_name#Claude }${RESET}"
     else
         echo "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
     fi
@@ -202,16 +198,12 @@ render_model() {
 
 render_ctx() {
     local used_int=${used_pct%.*}
-    if [ "$COMPACT_MODE" = "true" ]; then
+    if [ -n "$COMPACT_MODE" ]; then
         local color
         if is_1m_model; then
-            if [ "$used_int" -lt 30 ]; then color="$GRAY"
-            elif [ "$used_int" -lt 50 ]; then color="$YELLOW"
-            else color="$RED"; fi
+            color=$(pick_color "$used_int" 30 50)
         else
-            if [ "$used_int" -lt 50 ]; then color="$GRAY"
-            elif [ "$used_int" -lt 80 ]; then color="$YELLOW"
-            else color="$RED"; fi
+            color=$(pick_color "$used_int" 50 80)
         fi
         echo "${color}${used_int}%${RESET}"
     else
@@ -243,7 +235,7 @@ render_used() {
         limit_str="${limit_str:+$limit_str }${part}"
     fi
     [ -z "$limit_str" ] && return
-    if [ "$COMPACT_MODE" = "true" ]; then
+    if [ -n "$COMPACT_MODE" ]; then
         echo "${GRAY}$limit_str${RESET}"
     else
         echo "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
@@ -278,7 +270,6 @@ render_msg() {
     echo "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
 }
 
-# --- Build output from config ---
 build_line() {
     local items="$1"
     local segments=()
@@ -300,7 +291,6 @@ build_line() {
         [ -n "$seg" ] && segments+=("$seg")
     done
 
-    # Join segments with pipe
     local result=""
     for seg in "${segments[@]}"; do
         [ -n "$result" ] && result="$result $PIPE "
@@ -309,7 +299,6 @@ build_line() {
     echo "$result"
 }
 
-# Build and output each line
 output=""
 line1=$(build_line "$LINE1_ITEMS")
 line2=$(build_line "$LINE2_ITEMS")

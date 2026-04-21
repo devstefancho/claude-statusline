@@ -2,7 +2,7 @@ export const ITEMS = [
   { id: 'dir', label: 'Directory', description: 'Current directory relative path', defaultLine: 1 },
   { id: 'git', label: 'Git Status', description: 'Branch, ahead/behind, file changes', defaultLine: 1 },
   { id: 'worktree', label: 'Worktree', description: 'Worktree active indicator (✓/✗)', defaultLine: 1 },
-  { id: 'proj', label: 'Project Group', description: 'Combined dir + worktree + git + lines (compact)', defaultLine: 1 },
+  { id: 'proj', label: 'Project Group', description: 'Combined dir + worktree + git + lines in a bracketed group', defaultLine: 1 },
   { id: 'model', label: 'Model', description: 'Model display name', defaultLine: 2 },
   { id: 'ctx', label: 'Context', description: 'Context window usage progress bar', defaultLine: 2 },
   { id: 'used', label: 'Rate Limits', description: '5h and 7d usage with reset timers', defaultLine: 2 },
