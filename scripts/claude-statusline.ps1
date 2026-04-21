@@ -253,6 +253,8 @@ function Render-Msg {
                 } catch {}
             }
             if ($last_user_message -and $last_user_message -ne "null" -and $last_user_message -ne "Empty") {
+                # Strip control chars to prevent terminal escape injection from transcript content
+                $last_user_message = $last_user_message -replace '[\x00-\x1F]', ''
                 if ($last_user_message.Length -gt 200) {
                     $last_user_message = $last_user_message.Substring(0, 200) + "..."
                 }

@@ -42,16 +42,16 @@ eval "$(echo "$input" | jq -r '
   @sh "lines_removed=\(.cost.total_lines_removed // empty)"
 ' 2>/dev/null)"
 
-# ANSI color codes
-BLUE='\033[34m'
-GREEN='\033[32m'
-YELLOW='\033[33m'
-CYAN='\033[36m'
-WHITE='\033[37m'
-GRAY='\033[90m'
-MAGENTA='\033[35m'
-RED='\033[31m'
-RESET='\033[0m'
+# ANSI color codes — use ANSI-C quoting so bytes are literal, avoiding printf '%b' escape interpretation
+BLUE=$'\033[34m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+WHITE=$'\033[37m'
+GRAY=$'\033[90m'
+MAGENTA=$'\033[35m'
+RED=$'\033[31m'
+RESET=$'\033[0m'
 PIPE="${GRAY}|${RESET}"
 
 # Format remaining time from unix epoch to human readable
@@ -94,7 +94,7 @@ compute_relative_path() {
             relative_path="$repo_name"
         else
             local rel_path
-            rel_path=$(python3 -c "import os; print(os.path.relpath('$current_dir', '$git_root'))" 2>/dev/null || echo "")
+            rel_path=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$current_dir" "$git_root" 2>/dev/null || echo "")
             relative_path="$repo_name/$rel_path"
         fi
     else
@@ -102,7 +102,7 @@ compute_relative_path() {
             relative_path="$(basename "$project_dir")"
         else
             local rel_path
-            rel_path=$(python3 -c "import os; print(os.path.relpath('$current_dir', '$project_dir'))" 2>/dev/null || echo "")
+            rel_path=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$current_dir" "$project_dir" 2>/dev/null || echo "")
             relative_path="$(basename "$project_dir")/$rel_path"
         fi
     fi
@@ -258,7 +258,8 @@ render_style() {
 render_msg() {
     local last_user_message="Empty"
     if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-        last_user_message=$(tail -n 100 "$transcript_path" 2>/dev/null | jq -r 'select(.message.role == "user" and (.message.content | type == "string")) | .message.content' | tail -n 1 | head -c 200)
+        # Strip control chars to prevent terminal escape injection from transcript content
+        last_user_message=$(tail -n 100 "$transcript_path" 2>/dev/null | jq -r 'select(.message.role == "user" and (.message.content | type == "string")) | .message.content' | tail -n 1 | tr -d '\000-\037' | head -c 200)
         if [ -n "$last_user_message" ] && [ "$last_user_message" != "null" ]; then
             if [ ${#last_user_message} -eq 200 ]; then
                 last_user_message="${last_user_message}..."
@@ -303,9 +304,10 @@ output=""
 line1=$(build_line "$LINE1_ITEMS")
 line2=$(build_line "$LINE2_ITEMS")
 line3=$(build_line "$LINE3_ITEMS")
+nl=$'\n'
 
 [ -n "$line1" ] && output=" $line1"
-[ -n "$line2" ] && output="$output${output:+\n} $line2"
-[ -n "$line3" ] && output="$output${output:+\n} $line3"
+[ -n "$line2" ] && output="$output${output:+$nl} $line2"
+[ -n "$line3" ] && output="$output${output:+$nl} $line3"
 
-printf '%b' "$output"
+printf '%s' "$output"
