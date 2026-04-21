@@ -14,13 +14,29 @@ Claude Code CLI를 위한 커스텀 statusline 설정을 간편하게 설치할 
 
 ## Features
 
-statusline은 의미별로 그룹핑된 3줄로 표시됩니다:
+두 가지 레이아웃 모드를 제공합니다:
+
+**Multi-line (기본)** — 의미별로 그룹핑된 3줄:
 
 ```
  DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
  MODEL Opus 4.6 (1M context) | CTX [████░░░░░░] 8% | USED 64%(0h1m) 23%(5d21h) | LINES +42 -15
  SID a5bc4601... | STYLE default | MSG hi
 ```
+
+**Compact** — 모든 정보를 한 줄에:
+
+```
+ 45% | [✓ repo/src  main ↑2 ~1  +42/-15] | Opus 4.7 1M | 60%(2h30m) 20%(3d5h)
+```
+
+Compact 모드의 변화:
+- `ctx`는 `NN%`만 표시, 모델 context window 크기에 따라 색상 변경
+  - 1M context 모델: 30% 미만 gray, 30–50% yellow, 50% 이상 red
+  - 일반 모델: 50% 미만 gray, 50–80% yellow, 80% 이상 red
+- `model`은 `Claude ` 접두사 제거
+- `used`는 `USED` / `5h` / `7d` 라벨 제거 (순서 고정: 5시간 먼저, 7일 뒤)
+- `proj`는 `dir`, worktree(내부면 `✓` 접두사), `git`, 코드 변경 줄수를 하나의 `[...]` 그룹으로 묶음
 
 ### 사용 가능한 항목
 
@@ -29,8 +45,9 @@ statusline은 의미별로 그룹핑된 3줄로 표시됩니다:
 | `dir` | 현재 작업 디렉토리 (git 기준 상대경로) | 1 |
 | `git` | 브랜치, ahead/behind, 파일 상태 (untracked/staged/modified/deleted/conflicts) | 1 |
 | `worktree` | Worktree 표시 — `✓` (초록) / `✗` (빨강) | 1 |
+| `proj` | dir + worktree + git + 코드 변경을 하나의 괄호 그룹으로 (compact 전용) | 1 |
 | `model` | 사용 중인 Claude 모델명 | 2 |
-| `ctx` | Context window 사용률 (프로그레스 바) | 2 |
+| `ctx` | Context window 사용률 (프로그레스 바, compact에서는 `NN%`) | 2 |
 | `used` | Rate limit 사용률 (5시간 / 7일, 남은 시간 포함) | 2 |
 | `lines` | 세션 내 추가/삭제된 줄 수 (`+42 -15`) | 2 |
 | `sid` | 세션 ID | 3 |
@@ -60,17 +77,26 @@ npx github:devstefancho/claude-statusline install
 npx @devstefancho/claude-statusline install
 ```
 
+### Compact 설치
+
+한 줄짜리 compact 프리셋으로 바로 설치:
+
+```bash
+npx @devstefancho/claude-statusline install --compact
+```
+
 ### Interactive 설치
 
-표시할 항목을 선택하고 줄 배치를 지정할 수 있습니다:
+프리셋(compact / multi-line / custom)을 선택하거나 항목과 줄 배치를 직접 지정할 수 있습니다:
 
 ```bash
 npx @devstefancho/claude-statusline install -i
 ```
 
 Interactive 모드에서는:
-1. **항목 선택** — Space로 항목 토글, `a`로 전체 선택/해제
-2. **줄 배정** — 각 항목을 Line 1, 2, 3에 배치 (또는 기본 레이아웃 사용)
+1. **프리셋 선택** — Compact(한 줄), Multi-line(세 줄), Custom 중 선택
+2. **항목 선택** (Custom 전용) — Space로 항목 토글, `a`로 전체 선택/해제
+3. **줄 배정** (Custom 전용) — 각 항목을 Line 1, 2, 3에 배치 (또는 기본 레이아웃 사용)
 
 선택한 설정은 `~/.claude/statusline-config.json`에 저장되며, 스크립트가 런타임에 이 설정을 읽습니다.
 
@@ -83,10 +109,13 @@ npx @devstefancho/claude-statusline install --force
 # 기존 파일 백업 후 설치
 npx @devstefancho/claude-statusline install --backup
 
-# Interactive 항목 & 레이아웃 선택
+# Compact 한 줄 프리셋으로 설치
+npx @devstefancho/claude-statusline install --compact
+
+# Interactive 프리셋 / 항목 / 레이아웃 선택
 npx @devstefancho/claude-statusline install -i
 
-# Interactive 모드 건너뛰기, 기본 레이아웃 사용
+# Interactive 모드 건너뛰기, 기본(multi-line) 레이아웃 사용
 npx @devstefancho/claude-statusline install --default
 ```
 
@@ -104,8 +133,9 @@ npx @devstefancho/claude-statusline install [options]
 |------|------|
 | `-f, --force` | 기존 파일 덮어쓰기 |
 | `-b, --backup` | 기존 파일 백업 후 설치 |
-| `-i, --interactive` | Interactive 항목 선택 및 줄 배치 |
-| `--default` | Interactive 모드 건너뛰기, 기본 레이아웃 사용 |
+| `-i, --interactive` | Interactive 프리셋 / 항목 선택 및 줄 배치 |
+| `-c, --compact` | Compact 한 줄 프리셋으로 설치 |
+| `--default` | Interactive 모드 건너뛰기, 기본(multi-line) 레이아웃 사용 |
 
 ### uninstall
 
@@ -181,10 +211,11 @@ npx @devstefancho/claude-statusline install --force -i
 vim ~/.claude/statusline-config.json
 ```
 
-설정 예시:
+설정 예시 (multi-line):
 ```json
 {
   "version": 1,
+  "compact": false,
   "layout": {
     "line1": ["dir", "git", "worktree"],
     "line2": ["model", "ctx", "used", "lines"],
@@ -192,6 +223,21 @@ vim ~/.claude/statusline-config.json
   }
 }
 ```
+
+설정 예시 (compact):
+```json
+{
+  "version": 1,
+  "compact": true,
+  "layout": {
+    "line1": ["ctx", "proj", "model", "used"],
+    "line2": [],
+    "line3": []
+  }
+}
+```
+
+`compact` 플래그는 `ctx` / `model` / `used` 렌더링 방식을 바꿉니다 (라벨 제거, `ctx`는 사용률별 색상).
 
 ### 스크립트 파일 직접 수정
 

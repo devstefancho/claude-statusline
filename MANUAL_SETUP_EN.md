@@ -75,6 +75,44 @@ EOF
 }
 ```
 
+## Layout Configuration (Optional)
+
+The statusline script reads `~/.claude/statusline-config.json` if present. When absent, it falls back to the default multi-line layout.
+
+**Multi-line (default):**
+
+```bash
+cat > ~/.claude/statusline-config.json << 'EOF'
+{
+  "version": 1,
+  "compact": false,
+  "layout": {
+    "line1": ["dir", "git", "worktree"],
+    "line2": ["model", "ctx", "used", "lines"],
+    "line3": ["sid", "style", "msg"]
+  }
+}
+EOF
+```
+
+**Compact (single-line):**
+
+```bash
+cat > ~/.claude/statusline-config.json << 'EOF'
+{
+  "version": 1,
+  "compact": true,
+  "layout": {
+    "line1": ["ctx", "proj", "model", "used"],
+    "line2": [],
+    "line3": []
+  }
+}
+EOF
+```
+
+The `compact` flag changes how `ctx`, `model`, and `used` render (labels stripped, thresholded colors for `ctx`). Available items: `dir`, `git`, `worktree`, `proj`, `model`, `ctx`, `used`, `lines`, `sid`, `style`, `msg`.
+
 ## Verification
 
 1. Restart Claude Code (close and reopen the terminal, then run `claude`)

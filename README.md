@@ -14,13 +14,29 @@ An npx package for easily installing custom statusline configuration for Claude 
 
 ## Features
 
-The statusline is displayed in 3 lines, grouped by meaning:
+Two layout modes are available:
+
+**Multi-line (default)** — 3 lines grouped by meaning:
 
 ```
  DIR repo/src | GIT main (main) ↑2↓3 ?3 +2 ~4 -1 !1 | WORKTREE ✓
  MODEL Opus 4.6 (1M context) | CTX [████░░░░░░] 8% | USED 64%(0h1m) 23%(5d21h) | LINES +42 -15
  SID a5bc4601... | STYLE default | MSG hi
 ```
+
+**Compact** — everything on a single line:
+
+```
+ 45% | [✓ repo/src  main ↑2 ~1  +42/-15] | Opus 4.7 1M | 60%(2h30m) 20%(3d5h)
+```
+
+In compact mode:
+- `ctx` shows only `NN%`, colored by model context window size
+  - 1M context model: gray <30%, yellow 30–50%, red ≥50%
+  - Standard model: gray <50%, yellow 50–80%, red ≥80%
+- `model` drops the `Claude ` prefix
+- `used` drops the `USED` / `5h` / `7d` labels (order is fixed: 5-hour first, 7-day second)
+- `proj` groups `dir`, worktree (`✓` prefix when inside), `git`, and lines-changed into one bracketed segment
 
 ### Available Items
 
@@ -29,8 +45,9 @@ The statusline is displayed in 3 lines, grouped by meaning:
 | `dir` | Current working directory (relative path from git root) | 1 |
 | `git` | Branch, ahead/behind, file status (untracked/staged/modified/deleted/conflicts) | 1 |
 | `worktree` | Worktree indicator — `✓` (green) / `✗` (red) | 1 |
+| `proj` | Combined dir + worktree + git + lines-changed in a bracketed group (for compact mode) | 1 |
 | `model` | Active Claude model name | 2 |
-| `ctx` | Context window usage (progress bar) | 2 |
+| `ctx` | Context window usage (progress bar, or `NN%` in compact) | 2 |
 | `used` | Rate limit usage (5-hour / 7-day with remaining time) | 2 |
 | `lines` | Lines added/removed in session (`+42 -15`) | 2 |
 | `sid` | Session ID | 3 |
@@ -60,17 +77,26 @@ npx github:devstefancho/claude-statusline install
 npx @devstefancho/claude-statusline install
 ```
 
+### Compact Install
+
+Install the compact single-line preset directly:
+
+```bash
+npx @devstefancho/claude-statusline install --compact
+```
+
 ### Interactive Install
 
-Select which items to display and assign them to lines interactively:
+Pick a preset (compact / multi-line / custom), or customize items and line assignments:
 
 ```bash
 npx @devstefancho/claude-statusline install -i
 ```
 
 The interactive mode lets you:
-1. **Select items** — Toggle items on/off with space, toggle all with `a`
-2. **Assign lines** — Place each item on Line 1, 2, or 3 (or use the default layout)
+1. **Choose a preset** — Compact (single line), Multi-line (three lines), or Custom
+2. **Select items** (Custom only) — Toggle items on/off with space, toggle all with `a`
+3. **Assign lines** (Custom only) — Place each item on Line 1, 2, or 3 (or use the default layout)
 
 Your choices are saved to `~/.claude/statusline-config.json` and the scripts read this config at runtime.
 
@@ -83,10 +109,13 @@ npx @devstefancho/claude-statusline install --force
 # Backup existing files before install
 npx @devstefancho/claude-statusline install --backup
 
-# Interactive item & layout selection
+# Install compact single-line preset
+npx @devstefancho/claude-statusline install --compact
+
+# Interactive preset / item / layout selection
 npx @devstefancho/claude-statusline install -i
 
-# Skip interactive mode, use default layout
+# Skip interactive mode, use default (multi-line) layout
 npx @devstefancho/claude-statusline install --default
 ```
 
@@ -104,8 +133,9 @@ npx @devstefancho/claude-statusline install [options]
 |--------|-------------|
 | `-f, --force` | Overwrite existing files |
 | `-b, --backup` | Backup existing files before install |
-| `-i, --interactive` | Interactively select items and line layout |
-| `--default` | Skip interactive mode, use default layout |
+| `-i, --interactive` | Interactively select preset, items and line layout |
+| `-c, --compact` | Install compact single-line preset |
+| `--default` | Skip interactive mode, use default (multi-line) layout |
 
 ### uninstall
 
@@ -181,10 +211,11 @@ Edit the layout config directly:
 vim ~/.claude/statusline-config.json
 ```
 
-Example config:
+Example config (multi-line):
 ```json
 {
   "version": 1,
+  "compact": false,
   "layout": {
     "line1": ["dir", "git", "worktree"],
     "line2": ["model", "ctx", "used", "lines"],
@@ -192,6 +223,21 @@ Example config:
   }
 }
 ```
+
+Example config (compact):
+```json
+{
+  "version": 1,
+  "compact": true,
+  "layout": {
+    "line1": ["ctx", "proj", "model", "used"],
+    "line2": [],
+    "line3": []
+  }
+}
+```
+
+The `compact` flag changes how `ctx`, `model`, and `used` render (labels stripped, thresholded colors for `ctx`).
 
 ### Via Script File
 
