@@ -18,20 +18,25 @@ program
   .description('Install Claude statusline configuration')
   .option('-f, --force', 'Overwrite existing files')
   .option('-b, --backup', 'Backup existing files before installing')
-  .option('-i, --interactive', 'Interactively select items and line layout')
-  .option('--default', 'Skip interactive mode, use default layout')
+  .option('-i, --interactive', 'Interactively select preset, items and line layout')
+  .option('-c, --compact', 'Install compact single-line preset')
+  .option('--default', 'Skip interactive mode, use default (multi-line) layout')
   .addHelpText('after', `
 Available statusline items:
 ${formatItemsHelp()}
 
-Default layout:
+Default layout (multi-line):
   Line 1: dir, git, worktree
   Line 2: model, ctx, used, lines
   Line 3: sid, style, msg
 
+Compact layout (single-line):
+  Line 1: ctx, proj, model, used
+
 Examples:
-  $ claude-statusline install              # Install with default layout
-  $ claude-statusline install -i           # Interactive item & layout selection
+  $ claude-statusline install              # Install with default (multi-line) layout
+  $ claude-statusline install --compact    # Install compact single-line preset
+  $ claude-statusline install -i           # Interactive preset/layout selection
   $ claude-statusline install --force      # Overwrite existing installation`)
   .action(async (opts) => {
     await install(opts);

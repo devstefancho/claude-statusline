@@ -263,13 +263,28 @@ describe('install.js', () => {
         line2: ['dir', 'git'],
         line3: ['sid'],
       };
-      runInteractiveSetup.mockResolvedValue({ layout: customLayout });
+      runInteractiveSetup.mockResolvedValue({ layout: customLayout, compact: false });
 
       await install({ interactive: true });
 
       expect(runInteractiveSetup).toHaveBeenCalled();
       expect(writeStatuslineConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ layout: customLayout })
+        expect.objectContaining({ layout: customLayout, compact: false })
+      );
+    });
+
+    it('should persist compact flag returned from interactive setup', async () => {
+      const compactLayout = {
+        line1: ['ctx', 'proj', 'model', 'used'],
+        line2: [],
+        line3: [],
+      };
+      runInteractiveSetup.mockResolvedValue({ layout: compactLayout, compact: true });
+
+      await install({ interactive: true });
+
+      expect(writeStatuslineConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ layout: compactLayout, compact: true })
       );
     });
 
@@ -288,10 +303,41 @@ describe('install.js', () => {
       expect(writeStatuslineConfig).toHaveBeenCalled();
     });
 
+    it('should install compact preset when --compact is passed', async () => {
+      await install({ compact: true });
+
+      expect(runInteractiveSetup).not.toHaveBeenCalled();
+      expect(writeStatuslineConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          compact: true,
+          layout: expect.objectContaining({
+            line1: ['ctx', 'proj', 'model', 'used'],
+            line2: [],
+            line3: [],
+          }),
+        })
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith('\nMode: Compact (single-line)');
+    });
+
+    it('should let --default override --compact', async () => {
+      await install({ compact: true, default: true });
+
+      expect(writeStatuslineConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          compact: false,
+          layout: expect.objectContaining({
+            line1: ['dir', 'git', 'worktree'],
+          }),
+        })
+      );
+    });
+
     it('should log layout info after installation', async () => {
       await install({});
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nLayout:');
+      expect(consoleLogSpy).toHaveBeenCalledWith('\nMode: Multi-line');
+      expect(consoleLogSpy).toHaveBeenCalledWith('Layout:');
       expect(consoleLogSpy).toHaveBeenCalledWith('  Line 1: dir, git, worktree');
       expect(consoleLogSpy).toHaveBeenCalledWith('  Line 2: model, ctx, used, lines');
       expect(consoleLogSpy).toHaveBeenCalledWith('  Line 3: sid, style, msg');
@@ -309,7 +355,7 @@ describe('install.js', () => {
         line2: [],
         line3: ['sid'],
       };
-      runInteractiveSetup.mockResolvedValue({ layout: customLayout });
+      runInteractiveSetup.mockResolvedValue({ layout: customLayout, compact: false });
 
       await install({ interactive: true });
 
@@ -325,7 +371,7 @@ describe('install.js', () => {
         line2: [],
         line3: [],
       };
-      runInteractiveSetup.mockResolvedValue({ layout: customLayout });
+      runInteractiveSetup.mockResolvedValue({ layout: customLayout, compact: false });
 
       await install({ interactive: true });
 

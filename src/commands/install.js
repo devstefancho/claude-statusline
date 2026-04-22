@@ -15,7 +15,7 @@ import {
 } from '../utils/config.js';
 import { checkAllDependencies, printDependencyStatus } from '../utils/dependency.js';
 import { isWindows, getScriptName } from '../utils/platform.js';
-import { DEFAULT_LAYOUT } from '../utils/items.js';
+import { DEFAULT_LAYOUT, COMPACT_LAYOUT } from '../utils/items.js';
 import { runInteractiveSetup } from '../ui/prompts.js';
 
 export async function install(options) {
@@ -69,15 +69,21 @@ export async function install(options) {
     }
   }
 
-  // Determine layout: interactive or default
   let layout = DEFAULT_LAYOUT;
+  let compact = false;
 
-  if (options.interactive && !options.default) {
-    try {
-      const result = await runInteractiveSetup();
-      layout = result.layout;
-    } catch (error) {
-      console.warn('\n⚠ Interactive setup cancelled. Using default layout.');
+  if (!options.default) {
+    if (options.compact) {
+      layout = COMPACT_LAYOUT;
+      compact = true;
+    } else if (options.interactive) {
+      try {
+        const result = await runInteractiveSetup();
+        layout = result.layout;
+        compact = result.compact;
+      } catch (error) {
+        console.warn('\n⚠ Interactive setup cancelled. Using default layout.');
+      }
     }
   }
 
@@ -97,7 +103,7 @@ export async function install(options) {
   }
 
   // Write statusline config
-  const configData = { version: 1, layout };
+  const configData = { version: 1, compact, layout };
   if (writeStatuslineConfig(configData)) {
     console.log(`  ✓ Saved layout config to ${STATUSLINE_CONFIG_PATH}`);
   } else {
@@ -116,7 +122,8 @@ export async function install(options) {
   }
 
   console.log('\n✓ Installation complete!');
-  console.log('\nLayout:');
+  console.log(`\nMode: ${compact ? 'Compact (single-line)' : 'Multi-line'}`);
+  console.log('Layout:');
   if (layout.line1.length > 0) console.log(`  Line 1: ${layout.line1.join(', ')}`);
   if (layout.line2.length > 0) console.log(`  Line 2: ${layout.line2.join(', ')}`);
   if (layout.line3.length > 0) console.log(`  Line 3: ${layout.line3.join(', ')}`);

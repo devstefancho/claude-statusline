@@ -1,14 +1,22 @@
 #!/bin/bash
 
-# Read JSON input from stdin
 input=$(cat)
 
-# Read layout config
+# Read layout config (single jq invocation)
 CONFIG_FILE="$HOME/.claude/statusline-config.json"
+COMPACT_MODE=""
 if [ -f "$CONFIG_FILE" ]; then
-    LINE1_ITEMS=$(jq -r '.layout.line1[]?' "$CONFIG_FILE" 2>/dev/null)
-    LINE2_ITEMS=$(jq -r '.layout.line2[]?' "$CONFIG_FILE" 2>/dev/null)
-    LINE3_ITEMS=$(jq -r '.layout.line3[]?' "$CONFIG_FILE" 2>/dev/null)
+    {
+        IFS= read -r COMPACT_MODE
+        IFS= read -r LINE1_ITEMS
+        IFS= read -r LINE2_ITEMS
+        IFS= read -r LINE3_ITEMS
+    } < <(jq -r '
+        (if .compact then "1" else "" end),
+        ((.layout.line1 // []) | join(" ")),
+        ((.layout.line2 // []) | join(" ")),
+        ((.layout.line3 // []) | join(" "))
+    ' "$CONFIG_FILE" 2>/dev/null)
 else
     LINE1_ITEMS="dir git worktree"
     LINE2_ITEMS="model ctx used lines"
@@ -34,16 +42,16 @@ eval "$(echo "$input" | jq -r '
   @sh "lines_removed=\(.cost.total_lines_removed // empty)"
 ' 2>/dev/null)"
 
-# ANSI color codes
-BLUE='\033[34m'
-GREEN='\033[32m'
-YELLOW='\033[33m'
-CYAN='\033[36m'
-WHITE='\033[37m'
-GRAY='\033[90m'
-MAGENTA='\033[35m'
-RED='\033[31m'
-RESET='\033[0m'
+# ANSI color codes — use ANSI-C quoting so bytes are literal, avoiding printf '%b' escape interpretation
+BLUE=$'\033[34m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+CYAN=$'\033[36m'
+WHITE=$'\033[37m'
+GRAY=$'\033[90m'
+MAGENTA=$'\033[35m'
+RED=$'\033[31m'
+RESET=$'\033[0m'
 PIPE="${GRAY}|${RESET}"
 
 # Format remaining time from unix epoch to human readable
@@ -63,11 +71,19 @@ format_remaining() {
     fi
 }
 
-# --- Render functions ---
-# Each outputs a colored segment string or nothing if data is unavailable.
-# All JSON fields are parsed above; render functions use those variables.
+is_1m_model() {
+    [[ "$model_name" =~ (^|[^a-zA-Z0-9])1[mM]([^a-zA-Z0-9]|$) ]]
+}
 
-render_dir() {
+# Pick color from (gray, yellow, red) by thresholds (warn, crit)
+pick_color() {
+    local val=$1 warn=$2 crit=$3
+    if [ "$val" -lt "$warn" ]; then echo "$GRAY"
+    elif [ "$val" -lt "$crit" ]; then echo "$YELLOW"
+    else echo "$RED"; fi
+}
+
+compute_relative_path() {
     local relative_path=""
     if git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         local git_root
@@ -78,7 +94,7 @@ render_dir() {
             relative_path="$repo_name"
         else
             local rel_path
-            rel_path=$(python3 -c "import os; print(os.path.relpath('$current_dir', '$git_root'))" 2>/dev/null || echo "")
+            rel_path=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$current_dir" "$git_root" 2>/dev/null || echo "")
             relative_path="$repo_name/$rel_path"
         fi
     else
@@ -86,14 +102,14 @@ render_dir() {
             relative_path="$(basename "$project_dir")"
         else
             local rel_path
-            rel_path=$(python3 -c "import os; print(os.path.relpath('$current_dir', '$project_dir'))" 2>/dev/null || echo "")
+            rel_path=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$current_dir" "$project_dir" 2>/dev/null || echo "")
             relative_path="$(basename "$project_dir")/$rel_path"
         fi
     fi
-    echo "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    echo "$relative_path"
 }
 
-render_git() {
+compute_git_status() {
     if ! git -C "$current_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         return
     fi
@@ -102,10 +118,8 @@ render_git() {
     git_branch=$(git -C "$current_dir" symbolic-ref --short HEAD 2>/dev/null || git -C "$current_dir" rev-parse --short HEAD 2>/dev/null)
     local git_status_str="$git_branch"
 
-    # Original branch (when in worktree)
     [ -n "$worktree_orig_branch" ] && git_status_str="$git_status_str ($worktree_orig_branch)"
 
-    # Ahead/Behind
     local upstream
     upstream=$(git -C "$current_dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)
     if [ -n "$upstream" ]; then
@@ -116,7 +130,6 @@ render_git() {
         [ "$behind" -gt 0 ] 2>/dev/null && git_status_str="$git_status_str ↓$behind"
     fi
 
-    # File statuses from git status --porcelain
     local porcelain
     porcelain=$(git -C "$current_dir" status --porcelain 2>/dev/null)
     if [ -n "$porcelain" ]; then
@@ -134,7 +147,24 @@ render_git() {
         [ "$conflicts" -gt 0 ] && git_status_str="$git_status_str !$conflicts"
     fi
 
-    echo "${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    echo "$git_status_str"
+}
+
+# Precompute once — render_dir/render_git/render_proj all read these globals,
+# so git is invoked at most a single set of times regardless of layout.
+RELATIVE_PATH=$(compute_relative_path)
+GIT_STATUS_STR=$(compute_git_status)
+
+# --- Render functions ---
+# Each outputs a colored segment string or nothing if data is unavailable.
+
+render_dir() {
+    echo "${BLUE}DIR${RESET} ${GRAY}$RELATIVE_PATH${RESET}"
+}
+
+render_git() {
+    [ -z "$GIT_STATUS_STR" ] && return
+    echo "${GREEN}GIT${RESET} ${GRAY}$GIT_STATUS_STR${RESET}"
 }
 
 render_worktree() {
@@ -147,19 +177,44 @@ render_worktree() {
     echo "${CYAN}WORKTREE${RESET} ${GRAY}$worktree_str${RESET}"
 }
 
+render_proj() {
+    local inside=""
+    [ -n "$worktree_name" ] && inside="${GREEN}✓${RESET} "
+    inside="${inside}${BLUE}${RELATIVE_PATH}${RESET}"
+    [ -n "$GIT_STATUS_STR" ] && inside="${inside}  ${GREEN}${GIT_STATUS_STR}${RESET}"
+    if [ -n "$lines_added" ] || [ -n "$lines_removed" ]; then
+        inside="${inside}  ${GREEN}+${lines_added:-0}${RESET}${GRAY}/${RESET}${RED}-${lines_removed:-0}${RESET}"
+    fi
+    echo "${GRAY}[${RESET}${inside}${GRAY}]${RESET}"
+}
+
 render_model() {
-    echo "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    if [ -n "$COMPACT_MODE" ]; then
+        echo "${GREEN}${model_name#Claude }${RESET}"
+    else
+        echo "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
+    fi
 }
 
 render_ctx() {
     local used_int=${used_pct%.*}
-    local filled=$((used_int / 10))
-    local empty=$((10 - filled))
-    local ctx_bar="["
-    for ((i=0; i<filled; i++)); do ctx_bar+="█"; done
-    for ((i=0; i<empty; i++)); do ctx_bar+="░"; done
-    ctx_bar+="]"
-    echo "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    if [ -n "$COMPACT_MODE" ]; then
+        local color
+        if is_1m_model; then
+            color=$(pick_color "$used_int" 30 50)
+        else
+            color=$(pick_color "$used_int" 50 80)
+        fi
+        echo "${color}${used_int}%${RESET}"
+    else
+        local filled=$((used_int / 10))
+        local empty=$((10 - filled))
+        local ctx_bar="["
+        for ((i=0; i<filled; i++)); do ctx_bar+="█"; done
+        for ((i=0; i<empty; i++)); do ctx_bar+="░"; done
+        ctx_bar+="]"
+        echo "${MAGENTA}CTX${RESET} ${GRAY}$ctx_bar ${used_int}%${RESET}"
+    fi
 }
 
 render_used() {
@@ -180,7 +235,11 @@ render_used() {
         limit_str="${limit_str:+$limit_str }${part}"
     fi
     [ -z "$limit_str" ] && return
-    echo "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+    if [ -n "$COMPACT_MODE" ]; then
+        echo "${GRAY}$limit_str${RESET}"
+    else
+        echo "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
+    fi
 }
 
 render_lines() {
@@ -199,7 +258,8 @@ render_style() {
 render_msg() {
     local last_user_message="Empty"
     if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-        last_user_message=$(tail -n 100 "$transcript_path" 2>/dev/null | jq -r 'select(.message.role == "user" and (.message.content | type == "string")) | .message.content' | tail -n 1 | head -c 200)
+        # Strip control chars to prevent terminal escape injection from transcript content
+        last_user_message=$(tail -n 100 "$transcript_path" 2>/dev/null | jq -r 'select(.message.role == "user" and (.message.content | type == "string")) | .message.content' | tail -n 1 | tr -d '\000-\037' | head -c 200)
         if [ -n "$last_user_message" ] && [ "$last_user_message" != "null" ]; then
             if [ ${#last_user_message} -eq 200 ]; then
                 last_user_message="${last_user_message}..."
@@ -211,7 +271,6 @@ render_msg() {
     echo "${WHITE}MSG${RESET} ${GRAY}$last_user_message${RESET}"
 }
 
-# --- Build output from config ---
 build_line() {
     local items="$1"
     local segments=()
@@ -221,6 +280,7 @@ build_line() {
             dir)      seg=$(render_dir) ;;
             git)      seg=$(render_git) ;;
             worktree) seg=$(render_worktree) ;;
+            proj)     seg=$(render_proj) ;;
             model)    seg=$(render_model) ;;
             ctx)      seg=$(render_ctx) ;;
             used)     seg=$(render_used) ;;
@@ -232,7 +292,6 @@ build_line() {
         [ -n "$seg" ] && segments+=("$seg")
     done
 
-    # Join segments with pipe
     local result=""
     for seg in "${segments[@]}"; do
         [ -n "$result" ] && result="$result $PIPE "
@@ -241,14 +300,14 @@ build_line() {
     echo "$result"
 }
 
-# Build and output each line
 output=""
 line1=$(build_line "$LINE1_ITEMS")
 line2=$(build_line "$LINE2_ITEMS")
 line3=$(build_line "$LINE3_ITEMS")
+nl=$'\n'
 
 [ -n "$line1" ] && output=" $line1"
-[ -n "$line2" ] && output="$output${output:+\n} $line2"
-[ -n "$line3" ] && output="$output${output:+\n} $line3"
+[ -n "$line2" ] && output="$output${output:+$nl} $line2"
+[ -n "$line3" ] && output="$output${output:+$nl} $line3"
 
-printf '%b' "$output"
+printf '%s' "$output"

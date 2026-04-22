@@ -6,8 +6,12 @@ $data = $input_json | ConvertFrom-Json
 
 # Read layout config
 $configPath = Join-Path $env:USERPROFILE ".claude\statusline-config.json"
+$compactMode = $false
 if (Test-Path $configPath) {
     $config = Get-Content $configPath -Raw | ConvertFrom-Json
+    if ($config.PSObject.Properties.Name -contains 'compact') {
+        $compactMode = [bool]$config.compact
+    }
     $line1Items = @($config.layout.line1)
     $line2Items = @($config.layout.line2)
     $line3Items = @($config.layout.line3)
@@ -59,38 +63,46 @@ function Format-Remaining($resets_at) {
     else { return "${hours}h${mins}m" }
 }
 
-# --- Render functions ---
+function Is-1MModel {
+    if (-not $model_name) { return $false }
+    return ($model_name -match '(^|[^A-Za-z0-9])1[Mm]([^A-Za-z0-9]|$)')
+}
 
-function Render-Dir {
-    $relative_path = ""
+# Pick color from (gray, yellow, red) by thresholds (warn, crit)
+function Pick-Color($val, $warn, $crit) {
+    if ($val -lt $warn) { return $GRAY }
+    if ($val -lt $crit) { return $YELLOW }
+    return $RED
+}
+
+function Compute-RelativePath {
     try {
         $git_check = git -C $current_dir rev-parse --is-inside-work-tree 2>$null
         if ($LASTEXITCODE -eq 0) {
             $git_root = git -C $current_dir rev-parse --show-toplevel 2>$null
             $repo_name = Split-Path -Leaf $git_root
             if ($current_dir -eq $git_root) {
-                $relative_path = $repo_name
+                $rp = $repo_name
             } else {
                 $rel_path = [System.IO.Path]::GetRelativePath($git_root, $current_dir)
-                $relative_path = "$repo_name/$rel_path"
+                $rp = "$repo_name/$rel_path"
             }
         } else {
             throw "Not a git repo"
         }
     } catch {
         if ($current_dir -eq $project_dir) {
-            $relative_path = Split-Path -Leaf $project_dir
+            $rp = Split-Path -Leaf $project_dir
         } else {
             $rel_path = [System.IO.Path]::GetRelativePath($project_dir, $current_dir)
             $base_name = Split-Path -Leaf $project_dir
-            $relative_path = "$base_name/$rel_path"
+            $rp = "$base_name/$rel_path"
         }
     }
-    $relative_path = $relative_path -replace '\\', '/'
-    return "${BLUE}DIR${RESET} ${GRAY}$relative_path${RESET}"
+    return ($rp -replace '\\', '/')
 }
 
-function Render-Git {
+function Compute-GitStatus {
     try {
         $git_check = git -C $current_dir rev-parse --is-inside-work-tree 2>$null
         if ($LASTEXITCODE -ne 0) { return "" }
@@ -126,7 +138,23 @@ function Render-Git {
         if ($conflicts -gt 0) { $git_status_str += " !$conflicts" }
     }
 
-    return "${GREEN}GIT${RESET} ${GRAY}$git_status_str${RESET}"
+    return $git_status_str
+}
+
+# Precompute once — Render-Dir/Render-Git/Render-Proj all read these,
+# so git is invoked at most a single set of times regardless of layout.
+$relativePath = Compute-RelativePath
+$gitStatusStr = Compute-GitStatus
+
+# --- Render functions ---
+
+function Render-Dir {
+    return "${BLUE}DIR${RESET} ${GRAY}$relativePath${RESET}"
+}
+
+function Render-Git {
+    if (-not $gitStatusStr) { return "" }
+    return "${GREEN}GIT${RESET} ${GRAY}$gitStatusStr${RESET}"
 }
 
 function Render-Worktree {
@@ -137,12 +165,33 @@ function Render-Worktree {
     }
 }
 
+function Render-Proj {
+    $inside = ""
+    if ($worktree_name) { $inside = "${GREEN}✓${RESET} " }
+    $inside += "${BLUE}${relativePath}${RESET}"
+    if ($gitStatusStr) { $inside += "  ${GREEN}${gitStatusStr}${RESET}" }
+    if ($lines_added -ne $null -or $lines_removed -ne $null) {
+        $a = if ($lines_added) { $lines_added } else { 0 }
+        $r = if ($lines_removed) { $lines_removed } else { 0 }
+        $inside += "  ${GREEN}+$a${RESET}${GRAY}/${RESET}${RED}-$r${RESET}"
+    }
+    return "${GRAY}[${RESET}${inside}${GRAY}]${RESET}"
+}
+
 function Render-Model {
+    if ($compactMode) {
+        $name = $model_name -replace '^Claude ', ''
+        return "${GREEN}${name}${RESET}"
+    }
     return "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
 }
 
 function Render-Ctx {
     $used_int = [math]::Floor($used_pct)
+    if ($compactMode) {
+        $color = if (Is-1MModel) { Pick-Color $used_int 30 50 } else { Pick-Color $used_int 50 80 }
+        return "${color}${used_int}%${RESET}"
+    }
     $filled = [math]::Floor($used_int / 10)
     $empty = 10 - $filled
     $ctx_bar = "["
@@ -169,6 +218,9 @@ function Render-Used {
         $limit_str += $part
     }
     if (-not $limit_str) { return "" }
+    if ($compactMode) {
+        return "${GRAY}$limit_str${RESET}"
+    }
     return "${RED}USED${RESET} ${GRAY}$limit_str${RESET}"
 }
 
@@ -201,6 +253,8 @@ function Render-Msg {
                 } catch {}
             }
             if ($last_user_message -and $last_user_message -ne "null" -and $last_user_message -ne "Empty") {
+                # Strip control chars to prevent terminal escape injection from transcript content
+                $last_user_message = $last_user_message -replace '[\x00-\x1F]', ''
                 if ($last_user_message.Length -gt 200) {
                     $last_user_message = $last_user_message.Substring(0, 200) + "..."
                 }
@@ -222,6 +276,7 @@ function Build-Line($items) {
             "dir"      { Render-Dir }
             "git"      { Render-Git }
             "worktree" { Render-Worktree }
+            "proj"     { Render-Proj }
             "model"    { Render-Model }
             "ctx"      { Render-Ctx }
             "used"     { Render-Used }

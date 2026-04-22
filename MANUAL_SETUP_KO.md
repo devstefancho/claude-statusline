@@ -75,6 +75,44 @@ EOF
 }
 ```
 
+## 레이아웃 설정 (선택사항)
+
+스크립트는 `~/.claude/statusline-config.json`이 있으면 이를 읽어서 레이아웃을 적용합니다. 파일이 없으면 기본 multi-line 레이아웃으로 동작합니다.
+
+**Multi-line (기본):**
+
+```bash
+cat > ~/.claude/statusline-config.json << 'EOF'
+{
+  "version": 1,
+  "compact": false,
+  "layout": {
+    "line1": ["dir", "git", "worktree"],
+    "line2": ["model", "ctx", "used", "lines"],
+    "line3": ["sid", "style", "msg"]
+  }
+}
+EOF
+```
+
+**Compact (한 줄):**
+
+```bash
+cat > ~/.claude/statusline-config.json << 'EOF'
+{
+  "version": 1,
+  "compact": true,
+  "layout": {
+    "line1": ["ctx", "proj", "model", "used"],
+    "line2": [],
+    "line3": []
+  }
+}
+EOF
+```
+
+`compact` 플래그는 `ctx` / `model` / `used` 렌더링 방식을 바꿉니다 (라벨 제거, `ctx`는 사용률별 색상). 사용 가능한 항목: `dir`, `git`, `worktree`, `proj`, `model`, `ctx`, `used`, `lines`, `sid`, `style`, `msg`.
+
 ## 설치 확인
 
 1. Claude Code를 재시작합니다 (터미널을 닫고 다시 열어 `claude` 실행)
