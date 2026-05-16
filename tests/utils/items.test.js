@@ -10,6 +10,7 @@ describe('items.js', () => {
       expect(ids).toContain('worktree');
       expect(ids).toContain('proj');
       expect(ids).toContain('model');
+      expect(ids).toContain('fast');
       expect(ids).toContain('ctx');
       expect(ids).toContain('used');
       expect(ids).toContain('lines');
@@ -38,14 +39,14 @@ describe('items.js', () => {
 
     it('should have correct default items per line', () => {
       expect(DEFAULT_LAYOUT.line1).toEqual(['dir', 'git', 'worktree']);
-      expect(DEFAULT_LAYOUT.line2).toEqual(['model', 'ctx', 'used', 'lines']);
+      expect(DEFAULT_LAYOUT.line2).toEqual(['model', 'fast', 'ctx', 'used', 'lines']);
       expect(DEFAULT_LAYOUT.line3).toEqual(['sid', 'style', 'msg']);
     });
   });
 
   describe('COMPACT_LAYOUT', () => {
     it('should place all items on line1', () => {
-      expect(COMPACT_LAYOUT.line1).toEqual(['ctx', 'proj', 'model', 'used']);
+      expect(COMPACT_LAYOUT.line1).toEqual(['ctx', 'proj', 'model', 'fast', 'used']);
       expect(COMPACT_LAYOUT.line2).toEqual([]);
       expect(COMPACT_LAYOUT.line3).toEqual([]);
     });

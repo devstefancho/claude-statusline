@@ -311,7 +311,7 @@ describe('install.js', () => {
         expect.objectContaining({
           compact: true,
           layout: expect.objectContaining({
-            line1: ['ctx', 'proj', 'model', 'used'],
+            line1: ['ctx', 'proj', 'model', 'fast', 'used'],
             line2: [],
             line3: [],
           }),
@@ -339,7 +339,7 @@ describe('install.js', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith('\nMode: Multi-line');
       expect(consoleLogSpy).toHaveBeenCalledWith('Layout:');
       expect(consoleLogSpy).toHaveBeenCalledWith('  Line 1: dir, git, worktree');
-      expect(consoleLogSpy).toHaveBeenCalledWith('  Line 2: model, ctx, used, lines');
+      expect(consoleLogSpy).toHaveBeenCalledWith('  Line 2: model, fast, ctx, used, lines');
       expect(consoleLogSpy).toHaveBeenCalledWith('  Line 3: sid, style, msg');
     });
 

@@ -17,8 +17,20 @@ if (Test-Path $configPath) {
     $line3Items = @($config.layout.line3)
 } else {
     $line1Items = @("dir", "git", "worktree")
-    $line2Items = @("model", "ctx", "used", "lines")
+    $line2Items = @("model", "fast", "ctx", "used", "lines")
     $line3Items = @("sid", "style", "msg")
+}
+
+# Read fast mode flag from settings.json (unofficial key — see docs/adr/0001)
+$settingsPath = Join-Path $env:USERPROFILE ".claude\settings.json"
+$fastMode = $false
+if (Test-Path $settingsPath) {
+    try {
+        $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+        if ($settings.PSObject.Properties.Name -contains 'fastMode') {
+            $fastMode = [bool]$settings.fastMode
+        }
+    } catch {}
 }
 
 # Extract data from JSON
@@ -186,6 +198,14 @@ function Render-Model {
     return "${GREEN}MODEL${RESET} ${GRAY}$model_name${RESET}"
 }
 
+function Render-Fast {
+    if (-not $fastMode) { return "" }
+    if ($compactMode) {
+        return "${YELLOW}⚡${RESET}"
+    }
+    return "${YELLOW}FAST${RESET} ${YELLOW}⚡${RESET}"
+}
+
 function Render-Ctx {
     $used_int = [math]::Floor($used_pct)
     if ($compactMode) {
@@ -278,6 +298,7 @@ function Build-Line($items) {
             "worktree" { Render-Worktree }
             "proj"     { Render-Proj }
             "model"    { Render-Model }
+            "fast"     { Render-Fast }
             "ctx"      { Render-Ctx }
             "used"     { Render-Used }
             "lines"    { Render-Lines }
