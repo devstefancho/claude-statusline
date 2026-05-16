@@ -88,7 +88,7 @@ cat > ~/.claude/statusline-config.json << 'EOF'
   "compact": false,
   "layout": {
     "line1": ["dir", "git", "worktree"],
-    "line2": ["model", "ctx", "used", "lines"],
+    "line2": ["model", "fast", "ctx", "used", "lines"],
     "line3": ["sid", "style", "msg"]
   }
 }
@@ -103,7 +103,7 @@ cat > ~/.claude/statusline-config.json << 'EOF'
   "version": 1,
   "compact": true,
   "layout": {
-    "line1": ["ctx", "proj", "model", "used"],
+    "line1": ["ctx", "proj", "model", "fast", "used"],
     "line2": [],
     "line3": []
   }
@@ -111,7 +111,7 @@ cat > ~/.claude/statusline-config.json << 'EOF'
 EOF
 ```
 
-The `compact` flag changes how `ctx`, `model`, and `used` render (labels stripped, thresholded colors for `ctx`). Available items: `dir`, `git`, `worktree`, `proj`, `model`, `ctx`, `used`, `lines`, `sid`, `style`, `msg`.
+The `compact` flag changes how `ctx`, `model`, and `used` render (labels stripped, thresholded colors for `ctx`). Available items: `dir`, `git`, `worktree`, `proj`, `model`, `fast`, `ctx`, `used`, `lines`, `sid`, `style`, `msg`.
 
 ## Verification
 

@@ -47,6 +47,7 @@ In compact mode:
 | `worktree` | Worktree indicator — `✓` (green) / `✗` (red) | 1 |
 | `proj` | Combined dir + worktree + git + lines-changed in a bracketed group (for compact mode) | 1 |
 | `model` | Active Claude model name | 2 |
+| `fast` | Fast mode indicator (`FAST ⚡`, or `⚡` in compact) — only shown when `/fast` is on. See [Fast Mode](#fast-mode) | 2 |
 | `ctx` | Context window usage (progress bar, or `NN%` in compact) | 2 |
 | `used` | Rate limit usage (5-hour / 7-day with remaining time) | 2 |
 | `lines` | Lines added/removed in session (`+42 -15`) | 2 |
@@ -218,7 +219,7 @@ Example config (multi-line):
   "compact": false,
   "layout": {
     "line1": ["dir", "git", "worktree"],
-    "line2": ["model", "ctx", "used", "lines"],
+    "line2": ["model", "fast", "ctx", "used", "lines"],
     "line3": ["sid", "style", "msg"]
   }
 }
@@ -230,7 +231,7 @@ Example config (compact):
   "version": 1,
   "compact": true,
   "layout": {
-    "line1": ["ctx", "proj", "model", "used"],
+    "line1": ["ctx", "proj", "model", "fast", "used"],
     "line2": [],
     "line3": []
   }
@@ -249,6 +250,28 @@ vim ~/.claude/claude-statusline.sh
 
 # Windows (PowerShell)
 notepad $env:USERPROFILE\.claude\claude-statusline.ps1
+```
+
+## Fast Mode
+
+The `fast` item shows a `⚡` indicator while Claude Code's fast mode (`/fast`) is on. It renders nothing when fast mode is off, so adding it to your layout is free when you don't use the feature.
+
+### How the state is detected
+
+Claude Code does not currently expose fast mode in the statusline JSON. As a workaround, the script reads the `fastMode` boolean from `~/.claude/settings.json` directly. This key is undocumented and may be renamed, moved, or removed in a future Claude Code release — if that happens the indicator silently stops showing. See [docs/adr/0001-read-unofficial-fastmode-key.md](docs/adr/0001-read-unofficial-fastmode-key.md) for the rationale and trade-offs.
+
+### Refresh timing
+
+The statusline only refreshes on specific events (new assistant message, `/compact`, permission mode change, vim mode toggle). Toggling `/fast` alone does not trigger a refresh, so the indicator updates on your next interaction. If you want immediate feedback, add a `refreshInterval` to your `statusLine` config in `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/claude-statusline.sh",
+    "refreshInterval": 2000
+  }
+}
 ```
 
 ## Uninstallation

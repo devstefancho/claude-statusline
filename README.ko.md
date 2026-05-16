@@ -47,6 +47,7 @@ Compact 모드의 변화:
 | `worktree` | Worktree 표시 — `✓` (초록) / `✗` (빨강) | 1 |
 | `proj` | dir + worktree + git + 코드 변경을 하나의 괄호 그룹으로 (compact 전용) | 1 |
 | `model` | 사용 중인 Claude 모델명 | 2 |
+| `fast` | Fast mode 표시 (`FAST ⚡`, compact는 `⚡`) — `/fast`가 켜져 있을 때만 표시. [Fast Mode](#fast-mode) 참고 | 2 |
 | `ctx` | Context window 사용률 (프로그레스 바, compact에서는 `NN%`) | 2 |
 | `used` | Rate limit 사용률 (5시간 / 7일, 남은 시간 포함) | 2 |
 | `lines` | 세션 내 추가/삭제된 줄 수 (`+42 -15`) | 2 |
@@ -218,7 +219,7 @@ vim ~/.claude/statusline-config.json
   "compact": false,
   "layout": {
     "line1": ["dir", "git", "worktree"],
-    "line2": ["model", "ctx", "used", "lines"],
+    "line2": ["model", "fast", "ctx", "used", "lines"],
     "line3": ["sid", "style", "msg"]
   }
 }
@@ -230,7 +231,7 @@ vim ~/.claude/statusline-config.json
   "version": 1,
   "compact": true,
   "layout": {
-    "line1": ["ctx", "proj", "model", "used"],
+    "line1": ["ctx", "proj", "model", "fast", "used"],
     "line2": [],
     "line3": []
   }
@@ -249,6 +250,28 @@ vim ~/.claude/claude-statusline.sh
 
 # Windows (PowerShell)
 notepad $env:USERPROFILE\.claude\claude-statusline.ps1
+```
+
+## Fast Mode
+
+`fast` 항목은 Claude Code의 fast mode(`/fast`)가 켜져 있는 동안 `⚡` 표시를 보여줍니다. fast mode가 꺼져 있을 때는 아무것도 표시하지 않으므로, 이 기능을 쓰지 않더라도 layout에 추가해 두는 비용이 없습니다.
+
+### 상태 감지 방식
+
+Claude Code는 현재 statusline JSON에 fast mode 상태를 노출하지 않습니다. 우회책으로, 스크립트가 `~/.claude/settings.json`의 `fastMode` 불리언 값을 직접 읽습니다. 이 키는 공식 문서에 없는 비공식 키로, 향후 Claude Code 릴리스에서 이름이 바뀌거나 제거되면 표시가 조용히 사라질 수 있습니다. 결정 배경과 트레이드오프는 [docs/adr/0001-read-unofficial-fastmode-key.md](docs/adr/0001-read-unofficial-fastmode-key.md)에 기록되어 있습니다.
+
+### 갱신 타이밍
+
+Statusline은 특정 이벤트(새 assistant 메시지, `/compact`, permission mode 변경, vim mode 토글) 시점에만 갱신됩니다. 따라서 `/fast`만 토글한 직후에는 statusline이 즉시 갱신되지 않고, 다음 상호작용 때 표시가 바뀝니다. 즉시 반영이 필요하면 `~/.claude/settings.json`의 `statusLine` 설정에 `refreshInterval`을 추가하세요:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/claude-statusline.sh",
+    "refreshInterval": 2000
+  }
+}
 ```
 
 ## Uninstallation

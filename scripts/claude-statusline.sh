@@ -19,8 +19,15 @@ if [ -f "$CONFIG_FILE" ]; then
     ' "$CONFIG_FILE" 2>/dev/null)
 else
     LINE1_ITEMS="dir git worktree"
-    LINE2_ITEMS="model ctx used lines"
+    LINE2_ITEMS="model fast ctx used lines"
     LINE3_ITEMS="sid style msg"
+fi
+
+# Read fast mode flag from settings.json (unofficial key — see docs/adr/0001)
+SETTINGS_FILE="$HOME/.claude/settings.json"
+fast_mode=""
+if [ -f "$SETTINGS_FILE" ]; then
+    fast_mode=$(jq -r '.fastMode // false' "$SETTINGS_FILE" 2>/dev/null)
 fi
 
 # Extract data from JSON (all at once to avoid repeated jq calls)
@@ -196,6 +203,15 @@ render_model() {
     fi
 }
 
+render_fast() {
+    [ "$fast_mode" != "true" ] && return
+    if [ -n "$COMPACT_MODE" ]; then
+        echo "${YELLOW}⚡${RESET}"
+    else
+        echo "${YELLOW}FAST${RESET} ${YELLOW}⚡${RESET}"
+    fi
+}
+
 render_ctx() {
     local used_int=${used_pct%.*}
     if [ -n "$COMPACT_MODE" ]; then
@@ -282,6 +298,7 @@ build_line() {
             worktree) seg=$(render_worktree) ;;
             proj)     seg=$(render_proj) ;;
             model)    seg=$(render_model) ;;
+            fast)     seg=$(render_fast) ;;
             ctx)      seg=$(render_ctx) ;;
             used)     seg=$(render_used) ;;
             lines)    seg=$(render_lines) ;;

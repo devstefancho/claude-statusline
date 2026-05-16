@@ -4,6 +4,7 @@ export const ITEMS = [
   { id: 'worktree', label: 'Worktree', description: 'Worktree active indicator (✓/✗)', defaultLine: 1 },
   { id: 'proj', label: 'Project Group', description: 'Combined dir + worktree + git + lines in a bracketed group', defaultLine: 1 },
   { id: 'model', label: 'Model', description: 'Model display name', defaultLine: 2 },
+  { id: 'fast', label: 'Fast Mode', description: 'Fast mode indicator (shown only when /fast is on)', defaultLine: 2 },
   { id: 'ctx', label: 'Context', description: 'Context window usage progress bar', defaultLine: 2 },
   { id: 'used', label: 'Rate Limits', description: '5h and 7d usage with reset timers', defaultLine: 2 },
   { id: 'lines', label: 'Lines Changed', description: 'Lines added/removed in session', defaultLine: 2 },
@@ -14,12 +15,12 @@ export const ITEMS = [
 
 export const DEFAULT_LAYOUT = {
   line1: ['dir', 'git', 'worktree'],
-  line2: ['model', 'ctx', 'used', 'lines'],
+  line2: ['model', 'fast', 'ctx', 'used', 'lines'],
   line3: ['sid', 'style', 'msg'],
 };
 
 export const COMPACT_LAYOUT = {
-  line1: ['ctx', 'proj', 'model', 'used'],
+  line1: ['ctx', 'proj', 'model', 'fast', 'used'],
   line2: [],
   line3: [],
 };
