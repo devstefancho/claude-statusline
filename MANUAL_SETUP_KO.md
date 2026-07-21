@@ -111,7 +111,7 @@ cat > ~/.claude/statusline-config.json << 'EOF'
 EOF
 ```
 
-`compact` 플래그는 `ctx` / `model` / `used` 렌더링 방식을 바꿉니다 (라벨 제거, `ctx`는 사용률별 색상). 사용 가능한 항목: `dir`, `git`, `worktree`, `proj`, `model`, `fast`, `ctx`, `used`, `lines`, `sid`, `style`, `msg`.
+`compact` 플래그는 `ctx` / `model` / `used` 렌더링 방식을 바꿉니다 (라벨 제거, `ctx`는 사용률별 색상). 사용 가능한 항목: `dir`, `git`, `worktree`, `proj`, `model`, `fast`, `ctx`, `used`, `fable`, `lines`, `sid`, `style`, `msg`. (`fable`은 macOS 전용, opt-in이며 비공식 엔드포인트를 사용합니다 — README의 "Fable Usage" 섹션 참고.)
 
 ## 설치 확인
 

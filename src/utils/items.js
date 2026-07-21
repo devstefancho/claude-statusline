@@ -7,6 +7,7 @@ export const ITEMS = [
   { id: 'fast', label: 'Fast Mode', description: 'Fast mode indicator (shown only when /fast is on)', defaultLine: 2 },
   { id: 'ctx', label: 'Context', description: 'Context window usage progress bar', defaultLine: 2 },
   { id: 'used', label: 'Rate Limits', description: '5h and 7d usage with reset timers', defaultLine: 2 },
+  { id: 'fable', label: 'Model Weekly Usage', description: 'Per-model weekly usage % (e.g. Fable) — macOS only, unofficial endpoint (opt-in, not in default layouts)', defaultLine: 2 },
   { id: 'lines', label: 'Lines Changed', description: 'Lines added/removed in session', defaultLine: 2 },
   { id: 'sid', label: 'Session ID', description: 'Current session identifier', defaultLine: 3 },
   { id: 'style', label: 'Output Style', description: 'Current output style name', defaultLine: 3 },

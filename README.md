@@ -50,6 +50,7 @@ In compact mode:
 | `fast` | Fast mode indicator (`FAST ⚡`, or `⚡` in compact) — only shown when `/fast` is on. See [Fast Mode](#fast-mode) | 2 |
 | `ctx` | Context window usage (progress bar, or `NN%` in compact) | 2 |
 | `used` | Rate limit usage (5-hour / 7-day with remaining time) | 2 |
+| `fable` | Per-model weekly usage % (`FABLE 89%`, or `F89%` in compact) — **macOS only, opt-in, uses an unofficial endpoint**. See [Fable Usage](#fable-usage) | 2 |
 | `lines` | Lines added/removed in session (`+42 -15`) | 2 |
 | `sid` | Session ID | 3 |
 | `style` | Output style | 3 |
@@ -273,6 +274,53 @@ The statusline only refreshes on specific events (new assistant message, `/compa
   }
 }
 ```
+
+## Fable Usage
+
+> **Temporary / unofficial.** This segment exists only until Claude Code exposes per-model usage in the statusline JSON officially. Read the risks below before enabling it.
+
+The `fable` item shows the **per-model weekly usage** percentage — the same number Claude Code's `/usage` command and the desktop app show as e.g. "Fable 89%". It renders as `FABLE 89%(13h50m)` (multi-line) or `F89%` (compact), colored gray/yellow/red by the reported severity.
+
+It is **opt-in**: not part of the default or compact layouts. Add it via interactive install or by editing `~/.claude/statusline-config.json` (see [Customization](#customization)).
+
+### Where the number comes from
+
+The statusline stdin JSON only carries aggregate rate limits (5-hour / 7-day via the `used` item), not a per-model breakdown. So this segment fetches it from an **undocumented** endpoint:
+
+```
+GET https://api.anthropic.com/api/oauth/usage
+```
+
+It authenticates with the OAuth token Claude Code already stores in the macOS keychain (item `Claude Code-credentials`) — **no claude.ai cookie is used**, and no new secret is stored. The result is cached at `~/.claude/cache/fable-usage.json` and refreshed at most once every 5 minutes.
+
+### Risks and limitations
+
+- **Unofficial endpoint — may break silently.** The endpoint and its response schema are undocumented and can change without notice. If the shape changes, the segment simply shows nothing (no error). When that happens, inspect the cached response at `~/.claude/cache/fable-usage.json`, or run the `scripts/fable-usage-test.sh` helper (in this repo) to hit the endpoint directly.
+- **macOS only.** Authentication reads the keychain via the `security` command. On Linux and Windows the segment renders nothing.
+- **Keychain prompt.** macOS may prompt for keychain access on first use; choose **Always Allow** to avoid a prompt on every refresh.
+- **Not an official API.** This calls an internal endpoint with your own token at a low rate (≤ once per 5 minutes). It is a convenience workaround, not a supported integration.
+
+See [docs/adr/0002-fetch-fable-usage-oauth-endpoint.md](docs/adr/0002-fetch-fable-usage-oauth-endpoint.md) for the full rationale and trade-offs.
+
+## Updating
+
+This package is not published to npm, so update by re-running the GitHub installer. Re-installing overwrites the script in `~/.claude/` with the latest version:
+
+```bash
+# Pull the latest script and keep your current layout config
+npx github:devstefancho/claude-statusline install --force
+```
+
+Notes:
+
+- `--force` overwrites `~/.claude/claude-statusline.sh`. Your layout in `~/.claude/statusline-config.json` is preserved (a re-install does not reset it unless you re-run interactive selection). Add `-i` to reconfigure items/layout, or `--backup` to snapshot existing files first.
+- `npx` caches packages. If you still see an old version after installing, clear the cache and retry:
+  ```bash
+  npx --yes github:devstefancho/claude-statusline install --force
+  # or force a fresh fetch
+  npm cache clean --force && npx github:devstefancho/claude-statusline install --force
+  ```
+- Restart Claude Code (or wait for the next statusline refresh) to see the updated output.
 
 ## Uninstallation
 

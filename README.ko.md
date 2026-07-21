@@ -50,6 +50,7 @@ Compact 모드의 변화:
 | `fast` | Fast mode 표시 (`FAST ⚡`, compact는 `⚡`) — `/fast`가 켜져 있을 때만 표시. [Fast Mode](#fast-mode) 참고 | 2 |
 | `ctx` | Context window 사용률 (프로그레스 바, compact에서는 `NN%`) | 2 |
 | `used` | Rate limit 사용률 (5시간 / 7일, 남은 시간 포함) | 2 |
+| `fable` | 모델별 주간 사용률 (`FABLE 89%`, compact는 `F89%`) — **macOS 전용, opt-in, 비공식 엔드포인트 사용**. [Fable Usage](#fable-usage) 참고 | 2 |
 | `lines` | 세션 내 추가/삭제된 줄 수 (`+42 -15`) | 2 |
 | `sid` | 세션 ID | 3 |
 | `style` | 출력 스타일 | 3 |
@@ -273,6 +274,53 @@ Statusline은 특정 이벤트(새 assistant 메시지, `/compact`, permission m
   }
 }
 ```
+
+## Fable Usage
+
+> **임시 / 비공식.** 이 세그먼트는 Claude Code가 statusline JSON에 모델별 사용량을 공식적으로 노출하기 전까지만 쓰는 우회책입니다. 켜기 전에 아래 리스크를 먼저 읽으세요.
+
+`fable` 항목은 **모델별 주간 사용률**을 보여줍니다. Claude Code의 `/usage` 명령이나 데스크탑 앱에 뜨는 "Fable 89%"와 같은 숫자입니다. `FABLE 89%(13h50m)`(multi-line) 또는 `F89%`(compact)로 표시되며, 서버가 준 severity에 따라 회색/노랑/빨강으로 색이 바뀝니다.
+
+**opt-in 항목**입니다: 기본 및 compact 레이아웃에 포함되지 않습니다. Interactive 설치나 `~/.claude/statusline-config.json` 직접 편집으로 추가하세요([Customization](#customization) 참고).
+
+### 숫자의 출처
+
+Statusline stdin JSON에는 집계된 rate limit(5시간 / 7일, `used` 항목)만 있고 모델별 분해가 없습니다. 그래서 이 세그먼트는 **비공식** 엔드포인트에서 값을 가져옵니다:
+
+```
+GET https://api.anthropic.com/api/oauth/usage
+```
+
+인증은 Claude Code가 이미 macOS 키체인(`Claude Code-credentials` 항목)에 저장해 둔 OAuth 토큰을 사용합니다. **claude.ai 쿠키를 쓰지 않으며**, 새 비밀값을 저장하지도 않습니다. 결과는 `~/.claude/cache/fable-usage.json`에 캐시되고 최대 5분에 한 번만 갱신됩니다.
+
+### 리스크와 한계
+
+- **비공식 엔드포인트 — 조용히 깨질 수 있음.** 엔드포인트와 응답 스키마는 문서화되어 있지 않아 예고 없이 바뀔 수 있습니다. 구조가 바뀌면 세그먼트가 에러 없이 그냥 사라집니다. 그럴 때는 캐시된 응답 `~/.claude/cache/fable-usage.json`을 살펴보거나, 이 repo의 `scripts/fable-usage-test.sh` 헬퍼를 실행해 엔드포인트를 직접 확인하세요.
+- **macOS 전용.** 인증이 `security` 명령으로 키체인을 읽습니다. Linux/Windows에서는 아무것도 표시되지 않습니다.
+- **키체인 접근 팝업.** 최초 사용 시 macOS 키체인 접근 팝업이 뜰 수 있습니다. 매 갱신마다 팝업이 뜨지 않게 하려면 **Always Allow**를 선택하세요.
+- **공식 API 아님.** 본인 토큰으로 내부 엔드포인트를 저빈도(최대 5분에 1회)로 호출하는 편의 우회책이며, 지원되는 통합이 아닙니다.
+
+결정 배경과 트레이드오프는 [docs/adr/0002-fetch-fable-usage-oauth-endpoint.md](docs/adr/0002-fetch-fable-usage-oauth-endpoint.md)에 기록되어 있습니다.
+
+## Updating
+
+이 패키지는 npm에 게시되어 있지 않으므로, GitHub 설치 명령을 다시 실행해 업데이트합니다. 재설치하면 `~/.claude/`의 스크립트가 최신 버전으로 덮어써집니다:
+
+```bash
+# 최신 스크립트를 받고 현재 레이아웃 설정은 유지
+npx github:devstefancho/claude-statusline install --force
+```
+
+참고:
+
+- `--force`는 `~/.claude/claude-statusline.sh`를 덮어씁니다. `~/.claude/statusline-config.json`의 레이아웃은 유지됩니다(재설치가 이를 초기화하지 않으며, Interactive 선택을 다시 하지 않는 한 그대로입니다). 항목/레이아웃을 다시 구성하려면 `-i`를, 기존 파일을 먼저 백업하려면 `--backup`을 붙이세요.
+- `npx`는 패키지를 캐시합니다. 설치 후에도 옛 버전이 보이면 캐시를 비우고 다시 시도하세요:
+  ```bash
+  npx --yes github:devstefancho/claude-statusline install --force
+  # 또는 캐시를 완전히 비운 뒤 재설치
+  npm cache clean --force && npx github:devstefancho/claude-statusline install --force
+  ```
+- 변경된 출력을 보려면 Claude Code를 재시작하거나 다음 statusline 갱신을 기다리세요.
 
 ## Uninstallation
 
