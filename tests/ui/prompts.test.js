@@ -45,9 +45,9 @@ describe('prompts.js', () => {
 
       const call = checkbox.mock.calls[0][0];
       expect(call.choices.length).toBe(ITEMS.length);
-      // All should be checked by default
+      // All checked by default except opt-in `fable` (macOS-only, unofficial endpoint)
       for (const choice of call.choices) {
-        expect(choice.checked).toBe(true);
+        expect(choice.checked).toBe(choice.value !== 'fable');
       }
     });
 

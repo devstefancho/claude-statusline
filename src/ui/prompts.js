@@ -27,7 +27,7 @@ export async function promptPreset() {
 
 export async function promptItemSelection() {
   const allItemIds = ITEMS.map(i => i.id);
-  const defaultSelected = allItemIds; // all selected by default
+  const defaultSelected = allItemIds.filter(id => id !== 'fable'); // all selected by default except opt-in `fable` (macOS-only, unofficial endpoint)
 
   const choices = ITEMS.map(item => ({
     name: `${item.id.padEnd(10)} ${item.description}`,
