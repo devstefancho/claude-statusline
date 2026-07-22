@@ -58,6 +58,7 @@ WHITE=$'\033[37m'
 GRAY=$'\033[90m'
 MAGENTA=$'\033[35m'
 RED=$'\033[31m'
+CORAL=$'\033[38;2;206;107;96m'
 RESET=$'\033[0m'
 PIPE="${GRAY}|${RESET}"
 
@@ -162,6 +163,55 @@ compute_git_status() {
 RELATIVE_PATH=$(compute_relative_path)
 GIT_STATUS_STR=$(compute_git_status)
 
+# ============================================================================
+# Per-model (e.g. Fable) weekly usage — TEMPORARY / UNOFFICIAL
+# ----------------------------------------------------------------------------
+# TEMPORARY: The statusline stdin JSON exposes only aggregate rate limits
+# (rate_limits.five_hour / seven_day), not the per-model weekly limit that
+# Claude Code's `/usage` and the desktop app show (e.g. "Fable 89%"). Until
+# Claude Code exposes that number in the statusline JSON officially, this
+# segment fetches it from an UNOFFICIAL endpoint. Remove this block and the
+# `fable` render once an official field lands.
+#
+# Source : GET https://api.anthropic.com/api/oauth/usage
+# Auth   : Bearer token from the macOS keychain item "Claude Code-credentials"
+#          (the OAuth token Claude Code already stores — NO claude.ai cookie).
+# Scope  : macOS only (uses `security`). On Linux/Windows this renders nothing.
+# Risks  : Undocumented endpoint; response schema may change without notice and
+#          the segment then silently disappears. See docs/adr/0002 and the
+#          "Fable Usage" section of the README before relying on it.
+# ============================================================================
+FABLE_CACHE_DIR="$HOME/.claude/cache"
+FABLE_CACHE="$FABLE_CACHE_DIR/fable-usage.json"
+FABLE_STAMP="$FABLE_CACHE_DIR/fable-usage.stamp"
+FABLE_TTL=300  # seconds — never hit the endpoint more than once per 5 minutes
+
+refresh_fable_cache() {
+    local now last
+    now=$(date +%s)
+    last=$(cat "$FABLE_STAMP" 2>/dev/null)
+    case "$last" in ''|*[!0-9]*) last=0 ;; esac
+    [ $((now - last)) -lt "$FABLE_TTL" ] && return
+    mkdir -p "$FABLE_CACHE_DIR"
+    # Claim the slot before fetching: at most one attempt per TTL even on failure,
+    # so a dead network stalls one render by max-time instead of every render.
+    echo "$now" > "$FABLE_STAMP"
+    local token
+    token=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null \
+        | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
+    [ -z "$token" ] && return
+    local tmp="$FABLE_CACHE.tmp.$$"
+    if curl -sS --connect-timeout 2 --max-time 4 -o "$tmp" \
+            -H "Authorization: Bearer $token" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null \
+        && jq -e '.limits' "$tmp" >/dev/null 2>&1; then
+        mv "$tmp" "$FABLE_CACHE"
+    else
+        rm -f "$tmp"
+    fi
+}
+
 # --- Render functions ---
 # Each outputs a colored segment string or nothing if data is unavailable.
 
@@ -258,6 +308,38 @@ render_used() {
     fi
 }
 
+# Per-model weekly usage segment (TEMPORARY / macOS only — see the block above).
+render_fable() {
+    refresh_fable_cache
+    [ -f "$FABLE_CACHE" ] || return
+    local line
+    line=$(jq -r '
+        [.limits[]?
+         | select(.kind == "weekly_scoped"
+                  and ((.scope.model.display_name // "") | test("fable"; "i")))]
+        | first // empty
+        | "\(.percent)\t\(.severity)\t\((.resets_at // "") | sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z") | (try fromdateiso8601 catch ""))"
+    ' "$FABLE_CACHE" 2>/dev/null)
+    [ -z "$line" ] && return
+    local pct sev reset_epoch remaining
+    IFS=$'\t' read -r pct sev reset_epoch <<< "$line"
+    pct=${pct%.*}
+    remaining=$(format_remaining "$reset_epoch")
+    local color
+    case "$sev" in
+        warning) color=$YELLOW ;;
+        critical|exceeded) color=$RED ;;
+        *) color=$GRAY ;;
+    esac
+    local str="${pct}%"
+    [ -n "$remaining" ] && str="${str}(${remaining})"
+    if [ -n "$COMPACT_MODE" ]; then
+        echo "${CORAL}F${RESET}${color}${str}${RESET}"
+    else
+        echo "${CORAL}FABLE${RESET} ${color}${str}${RESET}"
+    fi
+}
+
 render_lines() {
     [ -z "$lines_added" ] && [ -z "$lines_removed" ] && return
     echo "${GREEN}LINES${RESET} ${GRAY}+${lines_added:-0} -${lines_removed:-0}${RESET}"
@@ -301,6 +383,7 @@ build_line() {
             fast)     seg=$(render_fast) ;;
             ctx)      seg=$(render_ctx) ;;
             used)     seg=$(render_used) ;;
+            fable)    seg=$(render_fable) ;;
             lines)    seg=$(render_lines) ;;
             sid)      seg=$(render_sid) ;;
             style)    seg=$(render_style) ;;

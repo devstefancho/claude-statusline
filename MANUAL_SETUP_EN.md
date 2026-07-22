@@ -111,7 +111,7 @@ cat > ~/.claude/statusline-config.json << 'EOF'
 EOF
 ```
 
-The `compact` flag changes how `ctx`, `model`, and `used` render (labels stripped, thresholded colors for `ctx`). Available items: `dir`, `git`, `worktree`, `proj`, `model`, `fast`, `ctx`, `used`, `lines`, `sid`, `style`, `msg`.
+The `compact` flag changes how `ctx`, `model`, and `used` render (labels stripped, thresholded colors for `ctx`). Available items: `dir`, `git`, `worktree`, `proj`, `model`, `fast`, `ctx`, `used`, `fable`, `lines`, `sid`, `style`, `msg`. (`fable` is macOS-only, opt-in, and uses an unofficial endpoint — see the README "Fable Usage" section.)
 
 ## Verification
 
